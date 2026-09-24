@@ -12,7 +12,7 @@ export default {
 
     try {
       if (url.pathname === "/" || url.pathname === "/health") {
-        return json({ ok: true, service: "whispervault-soundgasm", version: 3 }, 200, headers);
+        return json({ ok: true, service: "whispervault-soundgasm", version: 4 }, 200, headers);
       }
 
       if (url.pathname === "/api/media-discover" && request.method === "GET") {
@@ -58,6 +58,52 @@ export default {
         }
 
         return json({ query, count: items.length, items }, 200, headers);
+      }
+
+      if (url.pathname === "/api/video-discover" && request.method === "GET") {
+        const q = String(url.searchParams.get("q") || "").trim().slice(0, 120);
+        const requested = String(url.searchParams.get("source") || "all").trim().toLowerCase();
+        const limit = Math.max(1, Math.min(80, Number(url.searchParams.get("limit") || 50)));
+        if (!q) return json({ error: "Enter a search term." }, 400, headers);
+
+        const configs = videoSources();
+        const chosen = requested === "all"
+          ? Object.keys(configs)
+          : (configs[requested] ? [requested] : []);
+        if (!chosen.length) return json({ error: "Unsupported video source." }, 400, headers);
+
+        const items = [];
+        const sources = [];
+        for (const key of chosen) {
+          const cfg = configs[key];
+          let sourceCount = 0;
+          let sourceError = "";
+          try {
+            const searchUrl = cfg.search(q);
+            const res = await fetch(searchUrl, {
+              redirect: "follow",
+              headers: {
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
+                "Accept": "text/html,application/xhtml+xml"
+              },
+              cf: { cacheTtl: 300, cacheEverything: false }
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            const html = await res.text();
+            const found = extractVideoLinks(html, res.url || searchUrl, cfg, q, Math.max(8, Math.ceil(limit / chosen.length)));
+            sourceCount = found.length;
+            for (const item of found) {
+              if (items.length >= limit) break;
+              if (!items.some(x => x.url === item.url)) items.push(item);
+            }
+          } catch (e) {
+            sourceError = e && e.message ? e.message : "blocked";
+          }
+          sources.push({ key, name: cfg.name, count: sourceCount, error: sourceError || undefined, searchUrl: cfg.search(q) });
+          if (items.length >= limit) break;
+        }
+
+        return json({ query: q, count: items.length, items, sources }, 200, headers);
       }
 
       if (url.pathname === "/api/media-meta" && request.method === "GET") {
@@ -284,6 +330,84 @@ async function fetchPageMetadata(raw) {
     thumbnail: absolutize(rawThumb, finalUrl),
     tags: uniqueStrings(bracketTags(title).concat(bracketTags(description)).concat(keywords.split(/[,;]+/).map(x => x.trim()).filter(Boolean))).slice(0, 30)
   };
+}
+
+function videoSources() {
+  return {
+    pornhub: {
+      name: "Pornhub",
+      search: q => "https://www.pornhub.com/video/search?search=" + encodeURIComponent(q).replace(/%20/g, "+"),
+      allow: u => /(^|\.)pornhub\.com$/i.test(u.hostname) && /\/view_video\.php/i.test(u.pathname)
+    },
+    xvideos: {
+      name: "XVideos",
+      search: q => "https://www.xvideos.com/?k=" + encodeURIComponent(q).replace(/%20/g, "+"),
+      allow: u => /(^|\.)xvideos\.com$/i.test(u.hostname) && /^\/video/i.test(u.pathname)
+    },
+    xnxx: {
+      name: "XNXX",
+      search: q => "https://www.xnxx.com/search/" + encodeURIComponent(q),
+      allow: u => /(^|\.)xnxx\.com$/i.test(u.hostname) && /^\/video/i.test(u.pathname)
+    },
+    xhamster: {
+      name: "xHamster",
+      search: q => "https://xhamster.com/search/" + encodeURIComponent(q),
+      allow: u => /(^|\.)xhamster\.com$/i.test(u.hostname) && /\/videos\//i.test(u.pathname)
+    },
+    spankbang: {
+      name: "SpankBang",
+      search: q => "https://spankbang.com/s/" + encodeURIComponent(q).replace(/%20/g, "+") + "/",
+      allow: u => /(^|\.)spankbang\.com$/i.test(u.hostname) && /\/video\//i.test(u.pathname)
+    }
+  };
+}
+
+function attrValue(attrs, names) {
+  for (const name of names) {
+    const re = new RegExp("(?:^|\\s)" + name + "\\s*=\\s*['\\\"]([^'\\\"]+)['\\\"]", "i");
+    const m = re.exec(attrs || "");
+    if (m && m[1]) return decode(m[1]);
+  }
+  return "";
+}
+
+function extractVideoLinks(html, baseUrl, cfg, query, limit) {
+  const out = [];
+  const seen = new Set();
+  const re = /<a\b([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = re.exec(html)) && out.length < limit) {
+    let u;
+    try { u = new URL(decode(m[2]), baseUrl); } catch { continue; }
+    if (!cfg.allow(u)) continue;
+    u.hash = "";
+    const clean = u.toString();
+    if (seen.has(clean)) continue;
+
+    const attrs = String(m[1] || "") + " " + String(m[3] || "");
+    const inner = String(m[4] || "");
+    const img = /<img\b([^>]*)>/i.exec(inner);
+    const imgAttrs = img ? img[1] : "";
+    const title =
+      attrValue(attrs, ["title", "aria-label"]) ||
+      attrValue(imgAttrs, ["alt", "title"]) ||
+      decode(stripTags(inner)).replace(/\s+/g, " ").trim();
+    let thumb =
+      attrValue(imgAttrs, ["data-src", "data-original", "data-thumb_url", "data-thumb", "src"]);
+    thumb = absolutize(thumb, baseUrl);
+
+    if (!title && !thumb) continue;
+    seen.add(clean);
+    out.push({
+      url: clean,
+      site: cfg.name,
+      title: title || query,
+      thumbnail: thumb || "",
+      description: "",
+      tags: [query]
+    });
+  }
+  return out;
 }
 
 function normalizePublicPageUrl(raw) {
