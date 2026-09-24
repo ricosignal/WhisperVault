@@ -15,6 +15,51 @@ export default {
         return json({ ok: true, service: "whispervault-soundgasm", version: 3 }, 200, headers);
       }
 
+      if (url.pathname === "/api/media-discover" && request.method === "GET") {
+        const query = String(url.searchParams.get("query") || "").trim();
+        if (!query) return json({ error: "Enter a video search term." }, 400, headers);
+
+        const targets = ["SPE", "SPH", "small penis", "small cock", "tiny penis", "prostate"];
+        const sourceDomains = ["pornhub.com", "xvideos.com", "xhamster.com", "xnxx.com", "redgifs.com", "spankbang.com", "eporner.com"];
+        const siteClause = sourceDomains.map(d => "site:" + d).join(" OR ");
+        const searchQuery = '"' + query.replace(/"/g, "") + '" (' + siteClause + ')';
+        const searchUrl = "https://html.duckduckgo.com/html/?kp=-2&q=" + encodeURIComponent(searchQuery);
+
+        const searchRes = await fetch(searchUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; WhisperVault/3.0; +personal discovery indexer)",
+            "Accept": "text/html,application/xhtml+xml"
+          },
+          cf: { cacheTtl: 900, cacheEverything: false }
+        });
+        if (!searchRes.ok) return json({ error: "Discovery search returned " + searchRes.status }, 502, headers);
+
+        const searchHtml = await searchRes.text();
+        const links = extractSearchResultLinks(searchHtml, sourceDomains).slice(0, 12);
+        const inheritedTargets = matchTargets(query, targets);
+        const items = [];
+
+        for (const link of links) {
+          let meta = null;
+          try { meta = await fetchPageMetadata(link); } catch {}
+          const title = meta && meta.title ? meta.title : link;
+          const description = meta && meta.description ? meta.description : "";
+          const tags = meta && meta.tags ? meta.tags : [];
+          const matchedTargets = uniqueStrings(inheritedTargets.concat(matchTargets([title, description, tags.join(" ")].join(" "), targets)));
+          items.push({
+            url: meta && meta.sourceUrl ? meta.sourceUrl : link,
+            site: meta && meta.site ? meta.site : new URL(link).hostname.replace(/^www\./, ""),
+            title,
+            description,
+            thumbnail: meta && meta.thumbnail ? meta.thumbnail : "",
+            tags,
+            matchedTargets
+          });
+        }
+
+        return json({ query, count: items.length, items }, 200, headers);
+      }
+
       if (url.pathname === "/api/media-meta" && request.method === "GET") {
         const raw = url.searchParams.get("url") || "";
         const pageUrl = normalizePublicPageUrl(raw);
@@ -176,6 +221,69 @@ function cors(origin) {
 
 function json(data, status, headers) {
   return new Response(JSON.stringify(data), { status, headers });
+}
+
+function isAllowedDiscoveryHost(host, domains) {
+  host = String(host || "").toLowerCase();
+  return domains.some(d => host === d || host.endsWith("." + d));
+}
+
+function extractSearchResultLinks(html, domains) {
+  const out = [];
+  const seen = new Set();
+  const re = /<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi;
+  let m;
+  while ((m = re.exec(String(html || "")))) {
+    let href = decode(m[1]).trim();
+    try {
+      if (href.startsWith("//")) href = "https:" + href;
+      let u = new URL(href, "https://duckduckgo.com");
+      if (/duckduckgo\.com$/i.test(u.hostname) && u.pathname.startsWith("/l/")) {
+        const uddg = u.searchParams.get("uddg");
+        if (uddg) u = new URL(uddg);
+      }
+      if (u.protocol !== "https:" || !isAllowedDiscoveryHost(u.hostname, domains)) continue;
+      u.hash = "";
+      const clean = u.toString();
+      if (seen.has(clean)) continue;
+      seen.add(clean);
+      out.push(clean);
+    } catch {}
+  }
+  return out;
+}
+
+async function fetchPageMetadata(raw) {
+  const pageUrl = normalizePublicPageUrl(raw);
+  if (!pageUrl) throw new Error("Invalid public page URL");
+  const res = await fetch(pageUrl, {
+    method: "GET",
+    redirect: "follow",
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; WhisperVault/3.0; +personal metadata indexer)",
+      "Accept": "text/html,application/xhtml+xml"
+    },
+    cf: { cacheTtl: 1800, cacheEverything: false }
+  });
+  if (!res.ok) throw new Error("Source returned " + res.status);
+  const type = res.headers.get("content-type") || "";
+  if (!/text\/html|application\/xhtml\+xml/i.test(type)) throw new Error("Not an HTML page");
+  const len = Number(res.headers.get("content-length") || 0);
+  if (len && len > 2500000) throw new Error("Page too large");
+  const html = await res.text();
+  const finalUrl = res.url || pageUrl;
+  const title = firstMeta(html, ["og:title", "twitter:title"]) || htmlTitle(html) || finalUrl;
+  const description = firstMeta(html, ["og:description", "twitter:description", "description"]) || "";
+  const rawThumb = firstMeta(html, ["og:image:secure_url", "og:image", "twitter:image", "twitter:image:src"]) || "";
+  const keywords = firstMeta(html, ["keywords"]) || "";
+  return {
+    sourceUrl: finalUrl,
+    site: new URL(finalUrl).hostname.replace(/^www\./, ""),
+    title: decode(stripTags(title)).replace(/\s+/g, " ").trim(),
+    description: decode(stripTags(description)).replace(/\s+/g, " ").trim().slice(0, 1500),
+    thumbnail: absolutize(rawThumb, finalUrl),
+    tags: uniqueStrings(bracketTags(title).concat(bracketTags(description)).concat(keywords.split(/[,;]+/).map(x => x.trim()).filter(Boolean))).slice(0, 30)
+  };
 }
 
 function normalizePublicPageUrl(raw) {
