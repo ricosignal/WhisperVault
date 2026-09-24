@@ -28,7 +28,7 @@
       <div class="logo-mark small">WV</div>
       <div>
         <h1>WhisperVault</h1>
-        <div class="subtle">Private script-to-audio library · v3.0</div>
+        <div class="subtle">Private script + creator-audio library · v3.1</div>
       </div>
     </div>
     <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙︎</button>
@@ -39,12 +39,12 @@
       <div>
         <div class="eyebrow">PERSONAL • LOCAL-FIRST • 18+</div>
         <h2>Your private audio library.</h2>
-        <p>Index Reddit script posts with authorized API access, organize source metadata, add text you own or have permission to use, and listen with voices installed on your device.</p>
+        <p>Build a personal creator-audio catalog from public Soundgasm links, keep script text you have permission to use, and listen with creator recordings or voices installed on your device.</p>
       </div>
       <div class="hero-actions">
         <button id="addScriptBtn" class="primary">＋ Add script</button>
         <button id="addSourcesBtn" class="secondary">＋ Add source links</button>
-        <button id="redditSyncBtn" class="secondary">↻ Reddit Sync</button>
+        <button id="loadSoundgasmBtn" class="secondary">♫ Load Soundgasm starter catalog</button>
         <button id="importBackupBtn" class="ghost">Import backup</button>
       </div>
     </section>
@@ -68,18 +68,18 @@
       <div class="section-head">
         <div>
           <div class="eyebrow">SOURCE INBOX</div>
-          <h3>Reddit / web script links</h3>
-          <div class="subtle">Bulk-index titles, authors, tags and links from Reddit using an authorized OAuth token. Full post text is not bulk-copied.</div>
+          <h3>Soundgasm / web audio links</h3>
+          <div class="subtle">Soundgasm is now the main source. Public recording links are indexed by creator, title and tags without copying the hosted audio file.</div>
         </div>
         <div class="inline-actions">
-          <button id="redditSyncBtn2" class="ghost">Reddit Sync</button>
-          <button id="openRedditSearchBtn" class="ghost">Open GWA script search</button>
+          <button id="loadSoundgasmBtn2" class="ghost">Load Soundgasm starter</button>
+          <a class="ghost linklike" href="https://soundgasm.net/" target="_blank" rel="noopener">Open Soundgasm ↗</a>
           <button id="addSourcesBtn2" class="secondary">Add links</button>
         </div>
       </div>
       <div id="sourceEmpty" class="empty compact-empty panel">
         <h3>No source links yet</h3>
-        <p>Paste source links manually or use Reddit Sync to bulk-index approved API results. When you choose one, WhisperVault opens a new script form with its source already attached.</p>
+        <p>Load the starter Soundgasm catalog or paste Soundgasm recording links. WhisperVault keeps the creator/title/source metadata in your local library.</p>
       </div>
       <div id="sourceGrid" class="source-grid"></div>
     </section>
@@ -157,8 +157,8 @@
       <button class="icon-btn" type="button" data-close-dialog="sourcesDialog">✕</button>
     </div>
     <p class="subtle">Paste one URL per line. WhisperVault stores the links locally so you can work through them later.</p>
-    <label>Source URLs<textarea id="sourceUrls" rows="11" placeholder="https://www.reddit.com/r/gonewildaudio/comments/...
-https://www.reddit.com/r/.../comments/..."></textarea></label>
+    <label>Source URLs<textarea id="sourceUrls" rows="11" placeholder="https://soundgasm.net/u/Creator/Recording-Title
+https://soundgasm.net/u/AnotherCreator/Another-Recording"></textarea></label>
     <label>Optional default note<input id="sourceNote" maxlength="160" placeholder="e.g. newest script offers" /></label>
     <div id="sourceImportSummary" class="subtle"></div>
     <div class="dialog-actions">
@@ -220,7 +220,8 @@ https://www.reddit.com/r/.../comments/..."></textarea></label>
     <div class="setting-row"><div><strong>Local storage</strong><div class="subtle">Scripts, source links and preferences stay in this browser profile.</div></div><span class="status-pill">ON</span></div>
     <div class="setting-row"><div><strong>Clear all local data</strong><div class="subtle">Deletes your library, source inbox, favorites and preferences.</div></div><button id="clearAllBtn" class="danger">Clear</button></div>
     <div class="setting-row"><div><strong>Install on iPhone</strong><div class="subtle">After hosting on HTTPS, open in Safari → Share → Add to Home Screen.</div></div></div>
-    <div class="setting-row"><div><strong>Reddit Sync</strong><div class="subtle">v3 can bulk-index approved Reddit API results through OAuth. It saves metadata and links only; add full text only when you own it or have permission to copy it.</div></div></div>
+    <div class="setting-row"><div><strong>Soundgasm catalog</strong><div class="subtle">v3.1 indexes public Soundgasm recording links and metadata. The audio stays hosted at Soundgasm.</div></div></div>
+    <div class="setting-row"><div><strong>Reddit Sync</strong><div class="subtle">Optional legacy metadata sync remains available in the code, but Soundgasm is now the primary source.</div></div></div>
   </dialog>
 
   <input id="backupFileInput" type="file" accept="application/json,.json" hidden />
