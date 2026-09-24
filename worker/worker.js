@@ -12,7 +12,54 @@ export default {
 
     try {
       if (url.pathname === "/" || url.pathname === "/health") {
-        return json({ ok: true, service: "whispervault-soundgasm", version: 1 }, 200, headers);
+        return json({ ok: true, service: "whispervault-soundgasm", version: 2 }, 200, headers);
+      }
+
+      if (url.pathname === "/api/scriptbin-saves" && request.method === "POST") {
+        let body = {};
+        try { body = await request.json(); } catch {}
+        const accessKey = String(body.accessKey || "").trim();
+        const targets = Array.isArray(body.targets) && body.targets.length
+          ? body.targets.map(x => String(x)).slice(0, 20)
+          : ["SPE", "SPH", "small penis", "small cock", "tiny penis", "prostate"];
+
+        if (!accessKey) return json({ error: "Missing Scriptbin API access key." }, 400, headers);
+
+        const sb = await fetch("https://scriptbin.works/api/saves", {
+          method: "GET",
+          headers: {
+            "X-AccessKey": accessKey,
+            "User-Agent": "WhisperVault/2.0 (+personal metadata indexer)"
+          }
+        });
+
+        if (!sb.ok) {
+          const msg = sb.status === 401
+            ? "Scriptbin rejected that access key."
+            : "Scriptbin returned " + sb.status;
+          return json({ error: msg }, sb.status, headers);
+        }
+
+        const data = await sb.json();
+        const saves = Array.isArray(data.saves) ? data.saves : [];
+        const items = [];
+
+        for (const s of saves) {
+          const title = String(s.titleAndTags || "");
+          const matchedTargets = matchTargets(title, targets);
+          if (!matchedTargets.length) continue;
+          items.push({
+            writer: String(s.writer || ""),
+            title,
+            url: String(s.link || ""),
+            description: String(s.description || ""),
+            reminder: s.reminder || null,
+            tags: bracketTags(title),
+            matchedTargets
+          });
+        }
+
+        return json({ count: items.length, items }, 200, headers);
       }
 
       if (url.pathname === "/api/profile") {
@@ -73,7 +120,7 @@ export default {
 function cors(origin) {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8"
@@ -165,6 +212,26 @@ function inferTags(title) {
   const cat = inferCategory(text);
   if (cat !== "Soundgasm") tags.push(cat);
   return [...new Set(tags)];
+}
+
+function normalizeText(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function matchTargets(text, targets) {
+  const n = normalizeText(text);
+  return targets.filter(t => n.includes(normalizeText(t)));
+}
+
+function bracketTags(text) {
+  const out = [];
+  const re = /\[([^\]]+)\]/g;
+  let m;
+  while ((m = re.exec(String(text || "")))) {
+    const v = String(m[1] || "").trim().replace(/\s+/g, " ");
+    if (v && !out.includes(v)) out.push(v);
+  }
+  return out;
 }
 
 function stripTags(s) {
