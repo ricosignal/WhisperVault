@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#17131c" />
+  <meta name="theme-color" content="#17080f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="WhisperVault" />
-  <title>WhisperVault v3</title>
+  <title>WhisperVault</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
@@ -16,50 +16,53 @@
   <div id="ageGate" class="age-gate" hidden>
     <div class="gate-card">
       <div class="logo-mark">WV</div>
+      <div class="eyebrow">PRIVATE • 18+</div>
       <h1>WhisperVault</h1>
-      <p>This private script-to-audio library is intended for adults. Content stays on this device unless you export it.</p>
-      <button id="enterBtn" class="primary full">I am 18 or older</button>
+      <p>Your private after-dark audio library. Content and favorites stay on this device unless you export them.</p>
+      <button id="enterBtn" class="primary full">Enter WhisperVault</button>
       <button id="leaveBtn" class="ghost full">Exit</button>
     </div>
   </div>
+
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
 
   <header class="topbar">
     <div class="brand-wrap">
       <div class="logo-mark small">WV</div>
       <div>
         <h1>WhisperVault</h1>
-        <div class="subtle">Private script + creator-audio library · v3.1</div>
+        <div class="subtle">Private creator-audio + script library · v4</div>
       </div>
     </div>
-    <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙︎</button>
+    <div class="top-actions">
+      <button id="quickVoicesBtn" class="ghost compact">Voices</button>
+      <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙︎</button>
+    </div>
   </header>
 
   <main>
-    <section class="hero panel">
-      <div>
-        <div class="eyebrow">PERSONAL • LOCAL-FIRST • 18+</div>
-        <h2>Your private audio library.</h2>
-        <p>Build a personal creator-audio catalog from public Soundgasm links, keep script text you have permission to use, and listen with creator recordings or voices installed on your device.</p>
+    <section class="hero panel velvet">
+      <div class="hero-copy">
+        <div class="eyebrow">AFTER DARK • PERSONAL • LOCAL-FIRST</div>
+        <h2>Your private listening room.</h2>
+        <p>Import public Soundgasm creator catalogs, browse by category, favorite recordings, and choose the device voice you want for script playback.</p>
+        <div class="hero-actions">
+          <button id="importCreatorBtn" class="primary">＋ Import Soundgasm creator</button>
+          <button id="loadSoundgasmBtn" class="secondary">♫ Load starter catalog</button>
+          <button id="addSourcesBtn" class="ghost">Paste audio links</button>
+          <button id="addScriptBtn" class="ghost">Add script</button>
+        </div>
       </div>
-      <div class="hero-actions">
-        <button id="addScriptBtn" class="primary">＋ Add script</button>
-        <button id="addSourcesBtn" class="secondary">＋ Add source links</button>
-        <button id="loadSoundgasmBtn" class="secondary">♫ Load Soundgasm starter catalog</button>
-        <button id="importBackupBtn" class="ghost">Import backup</button>
+      <div class="muse-wrap" aria-hidden="true">
+        <div class="muse-halo"></div>
+        <div class="muse-hair"></div>
+        <div class="muse-head"></div>
+        <div class="muse-neck"></div>
+        <div class="muse-body"></div>
+        <div class="muse-glow"></div>
+        <div class="muse-caption">midnight mode</div>
       </div>
-    </section>
-
-    <section class="toolbar panel">
-      <label class="search-wrap">
-        <span>⌕</span>
-        <input id="searchInput" type="search" placeholder="Search title, author, tags…" autocomplete="off" />
-      </label>
-      <select id="categoryFilter" aria-label="Filter by category"><option value="all">All categories</option></select>
-      <select id="sortSelect" aria-label="Sort library">
-        <option value="newest">Newest</option>
-        <option value="title">Title A–Z</option>
-        <option value="favorites">Favorites first</option>
-      </select>
     </section>
 
     <section class="stats-row" id="statsRow"></section>
@@ -67,35 +70,68 @@
     <section class="source-section">
       <div class="section-head">
         <div>
-          <div class="eyebrow">SOURCE INBOX</div>
-          <h3>Soundgasm / web audio links</h3>
-          <div class="subtle">Soundgasm is now the main source. Public recording links are indexed by creator, title and tags without copying the hosted audio file.</div>
+          <div class="eyebrow">AUDIO CATALOG</div>
+          <h3>Soundgasm recordings</h3>
+          <div class="subtle">Search by creator, title or tag. Filter by F4M, M4F, ASMR, Romance and other detected categories.</div>
         </div>
         <div class="inline-actions">
-          <button id="loadSoundgasmBtn2" class="ghost">Load Soundgasm starter</button>
-          <a class="ghost linklike" href="https://soundgasm.net/" target="_blank" rel="noopener">Open Soundgasm ↗</a>
-          <button id="addSourcesBtn2" class="secondary">Add links</button>
+          <button id="importCreatorBtn2" class="primary compact">Import creator</button>
+          <button id="loadSoundgasmBtn2" class="ghost compact">Starter catalog</button>
+          <a class="ghost linklike compact" href="https://soundgasm.net/" target="_blank" rel="noopener">Open Soundgasm ↗</a>
         </div>
       </div>
+
+      <div class="toolbar panel audio-toolbar">
+        <label class="search-wrap">
+          <span>⌕</span>
+          <input id="sourceSearchInput" type="search" placeholder="Search recordings, creators, tags…" autocomplete="off" />
+        </label>
+        <select id="sourceCategoryFilter" aria-label="Filter audio by category"><option value="all">All categories</option></select>
+        <select id="sourceSortSelect" aria-label="Sort audio catalog">
+          <option value="newest">Newest added</option>
+          <option value="title">Title A–Z</option>
+          <option value="creator">Creator A–Z</option>
+        </select>
+      </div>
+
       <div id="sourceEmpty" class="empty compact-empty panel">
-        <h3>No source links yet</h3>
-        <p>Load the starter Soundgasm catalog or paste Soundgasm recording links. WhisperVault keeps the creator/title/source metadata in your local library.</p>
+        <div class="empty-icon">♫</div>
+        <h3>No recordings yet</h3>
+        <p>Import a Soundgasm creator profile, load the starter catalog, or paste recording links.</p>
       </div>
       <div id="sourceGrid" class="source-grid"></div>
     </section>
 
-    <section>
+    <section class="script-section">
       <div class="section-head">
         <div>
-          <div class="eyebrow">LIBRARY</div>
+          <div class="eyebrow">SCRIPT VOICE</div>
           <h3>Saved scripts</h3>
+          <div class="subtle">Use the voices installed on your iPhone, iPad or computer and adjust speed, pitch and volume.</div>
         </div>
-        <button id="exportBtn" class="ghost">Export backup</button>
+        <div class="inline-actions">
+          <button id="openVoicesBtn" class="secondary compact">Choose voice</button>
+          <button id="exportBtn" class="ghost compact">Export backup</button>
+        </div>
       </div>
+
+      <div class="toolbar panel">
+        <label class="search-wrap">
+          <span>⌕</span>
+          <input id="searchInput" type="search" placeholder="Search scripts…" autocomplete="off" />
+        </label>
+        <select id="categoryFilter" aria-label="Filter scripts by category"><option value="all">All categories</option></select>
+        <select id="sortSelect" aria-label="Sort script library">
+          <option value="newest">Newest</option>
+          <option value="title">Title A–Z</option>
+          <option value="favorites">Favorites first</option>
+        </select>
+      </div>
+
       <div id="emptyState" class="empty panel">
-        <div class="empty-icon">♫</div>
+        <div class="empty-icon">◉</div>
         <h3>No scripts yet</h3>
-        <p>Add text you have permission to use, or queue a source link first.</p>
+        <p>Add script text you own or have permission to use.</p>
         <button id="emptyAddBtn" class="primary">Add a script</button>
       </div>
       <div id="libraryGrid" class="library-grid"></div>
@@ -103,11 +139,48 @@
   </main>
 
   <nav class="bottom-nav">
-    <button class="nav-item active" data-scroll="top"><span>⌂</span><small>Library</small></button>
-    <button class="nav-item" id="navAdd"><span>＋</span><small>Add</small></button>
-    <button class="nav-item" id="navSources"><span>↗</span><small>Sources</small></button>
+    <button class="nav-item active" data-scroll="top"><span>⌂</span><small>Home</small></button>
+    <button class="nav-item" id="navSources"><span>♫</span><small>Audio</small></button>
+    <button class="nav-item" id="navAdd"><span>＋</span><small>Script</small></button>
     <button class="nav-item" id="navVoices"><span>◉</span><small>Voices</small></button>
   </nav>
+
+  <dialog id="creatorDialog" class="dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">SOUNDGASM CREATOR</div><h3>Import creator catalog</h3></div>
+      <button class="icon-btn" type="button" data-close-dialog="creatorDialog">✕</button>
+    </div>
+    <p class="subtle">Paste a public Soundgasm creator profile. WhisperVault asks your small Cloudflare Worker for that creator's public recording links and saves the catalog locally.</p>
+    <label>Creator profile
+      <input id="creatorProfileInput" type="url" inputmode="url" placeholder="https://soundgasm.net/u/CreatorName" />
+    </label>
+    <label>WhisperVault Worker URL
+      <input id="workerUrlInput" type="url" inputmode="url" placeholder="https://whispervault-soundgasm.YOURNAME.workers.dev" />
+    </label>
+    <div class="subtle">The Worker URL is saved only on this device.</div>
+    <div id="creatorImportStatus" class="status-box">Ready.</div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-close-dialog="creatorDialog">Close</button>
+      <button id="testWorkerBtn" type="button" class="ghost">Test connection</button>
+      <button id="runCreatorImportBtn" type="button" class="primary">Import recordings</button>
+    </div>
+  </dialog>
+
+  <dialog id="audioDialog" class="dialog audio-dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">CREATOR AUDIO</div><h3 id="audioTitle">Recording</h3><div id="audioMeta" class="subtle"></div></div>
+      <button class="icon-btn" type="button" data-close-dialog="audioDialog">✕</button>
+    </div>
+    <div class="audio-stage">
+      <div class="audio-orb"><span>♫</span></div>
+      <audio id="creatorAudio" controls preload="metadata"></audio>
+    </div>
+    <p id="audioDescription" class="subtle"></p>
+    <div class="dialog-actions">
+      <a id="audioSourceLink" class="ghost linklike" href="#" target="_blank" rel="noopener">Open on Soundgasm ↗</a>
+      <button id="audioFavoriteBtn" type="button" class="secondary">☆ Favorite</button>
+    </div>
+  </dialog>
 
   <dialog id="scriptDialog" class="dialog">
     <form method="dialog" id="scriptForm">
@@ -123,13 +196,13 @@
         <label>Category
           <select id="scriptCategory">
             <option>F4M</option><option>M4F</option><option>F4F</option><option>M4M</option><option>F4A</option><option>M4A</option><option>A4A</option>
-            <option>Roleplay</option><option>ASMR</option><option>Romance</option><option>Other</option>
+            <option>ASMR</option><option>Roleplay</option><option>Romance</option><option>Comfort</option><option>Other</option>
           </select>
         </label>
-        <label>Tags<input id="scriptTags" maxlength="300" placeholder="slow burn, comfort, story…" /></label>
+        <label>Tags<input id="scriptTags" maxlength="300" placeholder="comfort, romance, roleplay…" /></label>
       </div>
       <div class="form-grid two">
-        <label>Original source URL<input id="scriptSource" type="url" inputmode="url" placeholder="https://www.reddit.com/..." /></label>
+        <label>Original source URL<input id="scriptSource" type="url" inputmode="url" placeholder="https://..." /></label>
         <label>Source status
           <select id="scriptPermission">
             <option value="personal">Personal copy / permission confirmed</option>
@@ -139,7 +212,7 @@
           </select>
         </label>
       </div>
-      <label>Script text<textarea id="scriptText" required rows="14" placeholder="Paste the script text you have permission to use here."></textarea></label>
+      <label>Script text<textarea id="scriptText" required rows="14" placeholder="Paste script text here."></textarea></label>
       <div class="inline-actions left">
         <button id="pasteClipboardBtn" type="button" class="secondary">Paste from clipboard</button>
         <button id="parseTitleBtn" type="button" class="ghost">Parse tags from title</button>
@@ -153,13 +226,12 @@
 
   <dialog id="sourcesDialog" class="dialog">
     <div class="dialog-head">
-      <div><div class="eyebrow">SOURCE INBOX</div><h3>Add source links</h3></div>
+      <div><div class="eyebrow">PASTE LINKS</div><h3>Add Soundgasm recordings</h3></div>
       <button class="icon-btn" type="button" data-close-dialog="sourcesDialog">✕</button>
     </div>
-    <p class="subtle">Paste one URL per line. WhisperVault stores the links locally so you can work through them later.</p>
-    <label>Source URLs<textarea id="sourceUrls" rows="11" placeholder="https://soundgasm.net/u/Creator/Recording-Title
-https://soundgasm.net/u/AnotherCreator/Another-Recording"></textarea></label>
-    <label>Optional default note<input id="sourceNote" maxlength="160" placeholder="e.g. newest script offers" /></label>
+    <p class="subtle">Paste one public recording URL per line. Creator and category are inferred from the URL/title when possible.</p>
+    <label>Recording URLs<textarea id="sourceUrls" rows="11" placeholder="https://soundgasm.net/u/Creator/Recording-Title"></textarea></label>
+    <label>Optional default note<input id="sourceNote" maxlength="160" placeholder="Optional custom title" /></label>
     <div id="sourceImportSummary" class="subtle"></div>
     <div class="dialog-actions">
       <button type="button" class="ghost" data-close-dialog="sourcesDialog">Cancel</button>
@@ -167,40 +239,15 @@ https://soundgasm.net/u/AnotherCreator/Another-Recording"></textarea></label>
     </div>
   </dialog>
 
-  <dialog id="redditSyncDialog" class="dialog">
-    <div class="dialog-head">
-      <div><div class="eyebrow">AUTHORIZED REDDIT INDEX</div><h3>Reddit Sync</h3></div>
-      <button class="icon-btn" type="button" data-close-dialog="redditSyncDialog">✕</button>
-    </div>
-    <p class="subtle">This uses Reddit's OAuth Data API to index post metadata. Your token stays in this browser session and is sent only to Reddit.</p>
-    <div class="form-grid two">
-      <label>OAuth access token<input id="redditToken" type="password" autocomplete="off" placeholder="Bearer token from approved Reddit API access" /></label>
-      <label>Subreddit<input id="redditSubreddit" value="gonewildaudio" maxlength="80" /></label>
-    </div>
-    <div class="form-grid two">
-      <label>Search query<input id="redditQuery" value="[Script Offer]" maxlength="180" /></label>
-      <label>Sort
-        <select id="redditSort"><option value="new">Newest</option><option value="relevance">Relevance</option><option value="top">Top</option></select>
-      </label>
-    </div>
-    <div class="setting-row"><div><strong>What gets saved</strong><div class="subtle">Title, author, permalink, flair, tags, post ID and date. The post body is intentionally excluded from bulk import.</div></div><span class="status-pill">METADATA</span></div>
-    <div id="redditSyncStatus" class="subtle"></div>
-    <div class="dialog-actions">
-      <button type="button" class="ghost" data-close-dialog="redditSyncDialog">Close</button>
-      <button id="redditFetchBtn" type="button" class="primary">Fetch up to 100</button>
-      <button id="redditNextBtn" type="button" class="secondary" disabled>Next page</button>
-    </div>
-  </dialog>
-
   <dialog id="playerDialog" class="dialog player-dialog">
     <div class="dialog-head">
-      <div><div class="eyebrow">NOW PLAYING</div><h3 id="playerTitle">Script</h3><div id="playerMeta" class="subtle"></div></div>
+      <div><div class="eyebrow">SCRIPT VOICE</div><h3 id="playerTitle">Script</h3><div id="playerMeta" class="subtle"></div></div>
       <button class="icon-btn" type="button" data-close-dialog="playerDialog">✕</button>
     </div>
     <div class="player-progress"><div class="progress-track"><div id="progressBar" class="progress-bar"></div></div><div id="progressText" class="subtle">Ready</div></div>
-    <div class="voice-card"><label>Voice<select id="voiceSelect"></select></label><button id="favoriteVoiceBtn" class="ghost compact" type="button">☆ Favorite voice</button></div>
+    <div class="voice-card"><label>Voice<select id="voiceSelect"></select></label><button id="favoriteVoiceBtn" class="ghost compact" type="button">☆ Default voice</button></div>
     <div class="slider-grid">
-      <label>Speed <span id="rateValue">1.00×</span><input id="rateRange" type="range" min="0.6" max="1.6" step="0.05" value="1" /></label>
+      <label>Speed <span id="rateValue">1.00×</span><input id="rateRange" type="range" min="0.55" max="1.55" step="0.05" value="1" /></label>
       <label>Pitch <span id="pitchValue">1.00</span><input id="pitchRange" type="range" min="0.6" max="1.4" step="0.05" value="1" /></label>
       <label>Volume <span id="volumeValue">100%</span><input id="volumeRange" type="range" min="0" max="1" step="0.05" value="1" /></label>
     </div>
@@ -209,19 +256,22 @@ https://soundgasm.net/u/AnotherCreator/Another-Recording"></textarea></label>
   </dialog>
 
   <dialog id="voicesDialog" class="dialog">
-    <div class="dialog-head"><div><div class="eyebrow">VOICE BANK</div><h3>Available voices</h3></div><button class="icon-btn" type="button" data-close-dialog="voicesDialog">✕</button></div>
-    <p class="subtle">These voices come from your phone, tablet, or computer.</p>
-    <input id="voiceSearch" type="search" placeholder="Search voices or language…" />
+    <div class="dialog-head"><div><div class="eyebrow">VOICE BANK</div><h3>Choose your voice</h3></div><button class="icon-btn" type="button" data-close-dialog="voicesDialog">✕</button></div>
+    <p class="subtle">These are voices installed on your device. Search by name or language, preview them, then star one as your default.</p>
+    <input id="voiceSearch" type="search" placeholder="Search voice or language…" />
+    <div class="voice-preview-row">
+      <input id="voicePreviewText" value="Welcome to WhisperVault." maxlength="120" />
+      <button id="previewDefaultVoiceBtn" type="button" class="secondary">Preview default</button>
+    </div>
     <div id="voiceList" class="voice-list"></div>
   </dialog>
 
   <dialog id="settingsDialog" class="dialog">
     <div class="dialog-head"><div><div class="eyebrow">SETTINGS</div><h3>Privacy & backup</h3></div><button class="icon-btn" type="button" data-close-dialog="settingsDialog">✕</button></div>
-    <div class="setting-row"><div><strong>Local storage</strong><div class="subtle">Scripts, source links and preferences stay in this browser profile.</div></div><span class="status-pill">ON</span></div>
-    <div class="setting-row"><div><strong>Clear all local data</strong><div class="subtle">Deletes your library, source inbox, favorites and preferences.</div></div><button id="clearAllBtn" class="danger">Clear</button></div>
-    <div class="setting-row"><div><strong>Install on iPhone</strong><div class="subtle">After hosting on HTTPS, open in Safari → Share → Add to Home Screen.</div></div></div>
-    <div class="setting-row"><div><strong>Soundgasm catalog</strong><div class="subtle">v3.1 indexes public Soundgasm recording links and metadata. The audio stays hosted at Soundgasm.</div></div></div>
-    <div class="setting-row"><div><strong>Reddit Sync</strong><div class="subtle">Optional legacy metadata sync remains available in the code, but Soundgasm is now the primary source.</div></div></div>
+    <div class="setting-row"><div><strong>Local storage</strong><div class="subtle">Catalog, scripts, favorites, default voice and Worker URL stay in this browser profile.</div></div><span class="status-pill">ON</span></div>
+    <div class="setting-row"><div><strong>Cloudflare Worker</strong><div id="workerSettingText" class="subtle">Not connected</div></div><button id="openCreatorSettingsBtn" class="ghost compact">Configure</button></div>
+    <div class="setting-row"><div><strong>Clear all local data</strong><div class="subtle">Deletes the local library and preferences from this device.</div></div><button id="clearAllBtn" class="danger">Clear</button></div>
+    <div class="setting-row"><div><strong>Install on iPhone</strong><div class="subtle">Safari → Share → Add to Home Screen.</div></div></div>
   </dialog>
 
   <input id="backupFileInput" type="file" accept="application/json,.json" hidden />
