@@ -1,0 +1,182 @@
+const DEFAULT_ORIGIN = "https://ricosignal.github.io";
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const origin = env.APP_ORIGIN || DEFAULT_ORIGIN;
+    const headers = cors(origin);
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers });
+    }
+
+    try {
+      if (url.pathname === "/" || url.pathname === "/health") {
+        return json({ ok: true, service: "whispervault-soundgasm", version: 1 }, 200, headers);
+      }
+
+      if (url.pathname === "/api/profile") {
+        const raw = url.searchParams.get("url") || url.searchParams.get("user") || "";
+        const profileUrl = normalizeProfile(raw);
+        if (!profileUrl) return json({ error: "Enter a valid Soundgasm creator profile URL." }, 400, headers);
+
+        const creator = new URL(profileUrl).pathname.split("/").filter(Boolean)[1];
+        const res = await fetch(profileUrl, {
+          headers: { "User-Agent": "WhisperVault/1.0 (+personal library indexer)" },
+          cf: { cacheTtl: 300, cacheEverything: false }
+        });
+        if (!res.ok) return json({ error: "Soundgasm returned " + res.status }, res.status, headers);
+
+        const html = await res.text();
+        const items = collectProfileItems(html, creator);
+        return json({ creator, profileUrl, count: items.length, items }, 200, headers);
+      }
+
+      if (url.pathname === "/api/recording") {
+        const raw = url.searchParams.get("url") || "";
+        const recordingUrl = normalizeRecording(raw);
+        if (!recordingUrl) return json({ error: "Enter a valid Soundgasm recording URL." }, 400, headers);
+
+        const res = await fetch(recordingUrl, {
+          headers: { "User-Agent": "WhisperVault/1.0 (+personal library player)" },
+          cf: { cacheTtl: 600, cacheEverything: false }
+        });
+        if (!res.ok) return json({ error: "Soundgasm returned " + res.status }, res.status, headers);
+
+        const html = await res.text();
+        const path = new URL(recordingUrl).pathname.split("/").filter(Boolean);
+        const creator = path[1] || "";
+        const fallback = prettySlug(path.slice(2).join("/"));
+        const title = decode(stripTags((html.match(/class=["'][^"']*jp-title[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || [,""])[1]).trim()) || fallback;
+        const descriptionHtml = (html.match(/class=["'][^"']*jp-description[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || [,""])[1];
+        const description = decode(stripTags(descriptionHtml).replace(/\s+/g, " ").trim());
+        const media = (html.match(/m4a\s*:\s*["']([^"']+)["']/i) || html.match(/mp3\s*:\s*["']([^"']+)["']/i) || [,""])[1];
+
+        return json({
+          creator,
+          title,
+          description,
+          sourceUrl: recordingUrl,
+          mediaUrl: media || null,
+          category: inferCategory(title),
+          tags: inferTags(title)
+        }, 200, headers);
+      }
+
+      return json({ error: "Not found" }, 404, headers);
+    } catch (err) {
+      return json({ error: err && err.message ? err.message : "Unexpected worker error" }, 500, headers);
+    }
+  }
+};
+
+function cors(origin) {
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Cache-Control": "no-store",
+    "Content-Type": "application/json; charset=utf-8"
+  };
+}
+
+function json(data, status, headers) {
+  return new Response(JSON.stringify(data), { status, headers });
+}
+
+function normalizeProfile(raw) {
+  try {
+    if (!raw) return null;
+    if (!/^https?:\/\//i.test(raw)) raw = "https://soundgasm.net/u/" + raw.replace(/^@/,"");
+    const u = new URL(raw);
+    if (!/(^|\.)soundgasm\.net$/i.test(u.hostname)) return null;
+    const p = u.pathname.split("/").filter(Boolean);
+    if (p[0] !== "u" || !p[1]) return null;
+    return "https://soundgasm.net/u/" + encodeURIComponent(decodeURIComponent(p[1]));
+  } catch { return null; }
+}
+
+function normalizeRecording(raw) {
+  try {
+    const u = new URL(raw);
+    if (!/(^|\.)soundgasm\.net$/i.test(u.hostname)) return null;
+    const p = u.pathname.split("/").filter(Boolean);
+    if (p[0] !== "u" || !p[1] || !p[2]) return null;
+    return "https://soundgasm.net/" + p.map(encodeURIComponentSafe).join("/");
+  } catch { return null; }
+}
+
+function encodeURIComponentSafe(s) {
+  try { return encodeURIComponent(decodeURIComponent(s)); } catch { return encodeURIComponent(s); }
+}
+
+function collectProfileItems(html, creator) {
+  const base = "https://soundgasm.net";
+  const re = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const seen = new Set();
+  const out = [];
+  let m;
+  while ((m = re.exec(html))) {
+    let href = decode(m[1]).trim();
+    if (href.startsWith("/")) href = base + href;
+    if (!/^https:\/\/soundgasm\.net\/u\//i.test(href)) continue;
+    let u;
+    try { u = new URL(href); } catch { continue; }
+    const p = u.pathname.split("/").filter(Boolean);
+    if (p[0] !== "u" || p[1] !== creator || !p[2]) continue;
+    const clean = "https://soundgasm.net" + u.pathname;
+    if (seen.has(clean)) continue;
+    seen.add(clean);
+    const anchorText = decode(stripTags(m[2]).replace(/\s+/g, " ").trim());
+    const title = anchorText || prettySlug(p.slice(2).join("/"));
+    out.push({
+      url: clean,
+      author: creator,
+      title,
+      category: inferCategory(title),
+      tags: inferTags(title)
+    });
+  }
+  return out;
+}
+
+function prettySlug(slug) {
+  try { slug = decodeURIComponent(slug); } catch {}
+  return String(slug || "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function inferCategory(title) {
+  const m = String(title || "").match(/\b(F4M|M4F|F4F|M4M|F4A|M4A|A4A)\b/i);
+  return m ? m[1].toUpperCase() : "Soundgasm";
+}
+
+function inferTags(title) {
+  const text = String(title || "");
+  const tags = ["Soundgasm"];
+  const patterns = [
+    ["ASMR", /\basmr\b/i],
+    ["Romance", /\bromanc|romantic|girlfriend|boyfriend\b/i],
+    ["Comfort", /\bcomfort|reassur|cuddle|sleep\b/i],
+    ["Roleplay", /\broleplay|role play\b/i],
+    ["Script Fill", /\bscript\s*fill\b/i],
+    ["SFX", /\bsfx\b/i]
+  ];
+  for (const [name, rx] of patterns) if (rx.test(text)) tags.push(name);
+  const cat = inferCategory(text);
+  if (cat !== "Soundgasm") tags.push(cat);
+  return [...new Set(tags)];
+}
+
+function stripTags(s) {
+  return String(s || "").replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ");
+}
+
+function decode(s) {
+  return String(s || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#x2F;/gi, "/");
+}
