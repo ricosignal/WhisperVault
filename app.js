@@ -189,12 +189,49 @@ async function fetchMediaMeta(item){
   }catch(e){}
   return item
 }
+async function discoverMediaQuery(query){
+  var base=normalizeWorker(state.prefs.workerUrl);if(!base)throw new Error('Connect your WhisperVault Worker first.');
+  var r=await fetch(base+'/api/media-discover?query='+encodeURIComponent(query),{cache:'no-store'});
+  var d=await r.json();if(!r.ok)throw new Error(d.error||'Video discovery failed');
+  var targetFromQuery=targetMatches(query);
+  return (d.items||[]).map(function(item){
+    var tags=uniq((item.tags||[]).concat(targetFromQuery));
+    return {id:uid(),url:item.url,title:item.title||item.url,site:item.site||siteFromUrl(item.url),thumbnail:item.thumbnail||'',description:item.description||'',tags:tags,matchedTargets:uniq((item.matchedTargets||[]).concat(targetFromQuery)),createdAt:Date.now()}
+  })
+}
+async function discoverAllMedia(){
+  var btn=$('mediaDiscoverAllBtn'),base=normalizeWorker(state.prefs.workerUrl);
+  if(!base){alert('Connect your WhisperVault Worker first.');return}
+  btn.disabled=true;var added=0,found=0,failed=0;
+  for(var i=0;i<MEDIA_TARGETS.length;i++){
+    btn.textContent='Searching '+(i+1)+'/'+MEDIA_TARGETS.length+'…';
+    try{
+      var items=await discoverMediaQuery(MEDIA_TARGETS[i]);found+=items.length;
+      items.forEach(function(item){
+        if(!item.url||state.media.some(function(x){return x.url===item.url}))return;
+        state.media.push(item);added++
+      })
+    }catch(e){failed++}
+  }
+  save();btn.disabled=false;btn.textContent='⌕ Discover target videos';
+  alert('Discovery found '+found+' results and added '+added+' new video links.'+(failed?' '+failed+' searches could not be completed.':''))
+}
 async function importMediaLinks(){
-  var lines=$('mediaPasteInput').value.split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean).slice(0,200);
-  if(!lines.length){$('mediaAddStatus').textContent='Paste at least one public video-page URL.';return}
-  $('mediaImportBtn').disabled=true;var added=0,skipped=0,fetchMeta=$('mediaFetchMeta').checked;
+  var lines=$('mediaPasteInput').value.split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean).slice(0,50);
+  if(!lines.length){$('mediaAddStatus').textContent='Enter a search term or public video-page URL.';return}
+  $('mediaImportBtn').disabled=true;var added=0,skipped=0,found=0,fetchMeta=$('mediaFetchMeta').checked;
   for(var i=0;i<lines.length;i++){
     $('mediaAddStatus').textContent='Checking '+(i+1)+' of '+lines.length+'…';
+    if(!/^https?:\/\//i.test(lines[i])){
+      try{
+        var results=await discoverMediaQuery(lines[i]);found+=results.length;
+        results.forEach(function(item){
+          if(!item.url||state.media.some(function(x){return x.url===item.url})){skipped++;return}
+          state.media.push(item);added++
+        })
+      }catch(e){skipped++}
+      continue
+    }
     var item=parseMediaLine(lines[i]);if(!item){skipped++;continue}
     if(state.media.some(function(x){return x.url===item.url})){skipped++;continue}
     if(fetchMeta)item=await fetchMediaMeta(item);
@@ -202,7 +239,7 @@ async function importMediaLinks(){
     if(!item.matchedTargets.length){skipped++;continue}
     state.media.push(item);added++
   }
-  save();$('mediaAddStatus').textContent='Added '+added+' matching video link'+(added===1?'':'s')+'. Skipped '+skipped+' invalid, duplicate, or non-matching entries.';
+  save();$('mediaAddStatus').textContent='Found '+found+' discovery results. Added '+added+' new matching video link'+(added===1?'':'s')+'. Skipped '+skipped+' invalid, duplicate, or non-matching entries.';
   $('mediaImportBtn').disabled=false
 }
 async function refreshMedia(id){
@@ -447,7 +484,7 @@ $('scriptForm').addEventListener('submit',function(e){
 
 $('addScriptBtn').onclick=$('emptyAddBtn').onclick=$('navAdd').onclick=function(){resetScriptForm();openD('scriptDialog')};
 $('addSourcesBtn').onclick=function(){openD('sourcesDialog')};$('saveSourcesBtn').onclick=addLinks;
-$('mediaAddBtn').onclick=function(){openD('mediaAddDialog')};$('mediaImportBtn').onclick=importMediaLinks;
+$('mediaDiscoverAllBtn').onclick=discoverAllMedia;$('mediaAddBtn').onclick=function(){openD('mediaAddDialog')};$('mediaImportBtn').onclick=importMediaLinks;
 $('scriptbinPasteBtn').onclick=function(){openD('scriptbinPasteDialog')};$('scriptbinImportPastedBtn').onclick=importPastedScriptbin;
 $('scriptbinSyncSavedBtn').onclick=function(){openD('scriptbinSavedDialog')};$('scriptbinRunSavedSyncBtn').onclick=syncScriptbinSaves;
 $('copyGwasiQueryBtn').onclick=copyGwasiQuery;
