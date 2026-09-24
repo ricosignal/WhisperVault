@@ -136,7 +136,7 @@ async function loadStarter(){
   finally{buttons.forEach(function(b){b.disabled=false})}
 }
 
-function normalizeWorker(v){return String(v||'').trim().replace(/\/+$/,'')}
+function normalizeWorker(v){var s=String(v||'').trim();if(s&&!/^https?:\/\//i.test(s))s='https://'+s;return s.replace(/\/+$/,'')}
 function openCreatorDialog(){
   $('workerUrlInput').value=state.prefs.workerUrl||'';$('creatorImportStatus').textContent='Ready.';openD('creatorDialog')
 }
