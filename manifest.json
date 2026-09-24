@@ -1,11 +1,18 @@
 {
-  "name":"WhisperVault",
-  "short_name":"WhisperVault",
-  "start_url":"./",
-  "scope":"./",
-  "display":"standalone",
-  "background_color":"#0f0d13",
-  "theme_color":"#17131c",
-  "description":"Private local-first script-to-audio library.",
-  "icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+  "name": "WhisperVault",
+  "short_name": "WhisperVault",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0609",
+  "theme_color": "#17080f",
+  "description": "Private after-dark creator audio and script voice library.",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
