@@ -10,7 +10,7 @@
   <title>WhisperVault</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
   <div id="ageGate" class="age-gate" hidden>
@@ -32,7 +32,7 @@
       <div class="logo-mark small">WV</div>
       <div>
         <h1>WhisperVault</h1>
-        <div class="subtle">Private creator-audio + script library · v4</div>
+        <div class="subtle">Private creator-audio + script library · v5</div>
       </div>
     </div>
     <div class="top-actions">
@@ -92,6 +92,9 @@
           <option value="title">Title A–Z</option>
           <option value="creator">Creator A–Z</option>
         </select>
+        <button id="sourceSearchBtn" class="secondary compact" type="button">Search</button>
+        <button id="sourceClearBtn" class="ghost compact" type="button">Clear</button>
+        <div id="sourceSearchCount" class="search-count">Showing all recordings</div>
       </div>
 
       <div id="sourceEmpty" class="empty compact-empty panel">
@@ -100,6 +103,47 @@
         <p>Import a Soundgasm creator profile, load the starter catalog, or paste recording links.</p>
       </div>
       <div id="sourceGrid" class="source-grid"></div>
+    </section>
+
+    <section class="scriptbin-section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">SCRIPTBIN MATCHES</div>
+          <h3>Targeted Scriptbin index</h3>
+          <div class="subtle">Tracks public Scriptbin metadata and links matching your selected tags. Full script text is not copied automatically.</div>
+        </div>
+        <div class="inline-actions">
+          <button id="scriptbinPasteBtn" class="primary compact" type="button">Paste Scriptbin links</button>
+          <button id="scriptbinSyncSavedBtn" class="secondary compact" type="button">Sync saved matches</button>
+          <button id="copyGwasiQueryBtn" class="ghost compact" type="button">Copy discovery query</button>
+          <a class="ghost linklike compact" href="https://scriptbin.works/" target="_blank" rel="noopener">Open Scriptbin ↗</a>
+        </div>
+      </div>
+
+      <div id="scriptbinTargetChips" class="target-chips"></div>
+
+      <div class="toolbar panel scriptbin-toolbar">
+        <label class="search-wrap">
+          <span>⌕</span>
+          <input id="scriptbinSearchInput" type="search" placeholder="Search Scriptbin title, writer, tags…" autocomplete="off" />
+        </label>
+        <select id="scriptbinTagFilter" aria-label="Filter Scriptbin by target tag"><option value="all">All target tags</option></select>
+        <select id="scriptbinSortSelect" aria-label="Sort Scriptbin matches">
+          <option value="newest">Newest added</option>
+          <option value="title">Title A–Z</option>
+          <option value="writer">Writer A–Z</option>
+        </select>
+        <button id="scriptbinSearchBtn" class="secondary compact" type="button">Search</button>
+        <button id="scriptbinClearBtn" class="ghost compact" type="button">Clear</button>
+        <div id="scriptbinSearchCount" class="search-count">No Scriptbin entries indexed yet</div>
+      </div>
+
+      <div id="scriptbinEmpty" class="empty compact-empty panel">
+        <div class="empty-icon">⌕</div>
+        <h3>No matching Scriptbin links yet</h3>
+        <p>Paste Scriptbin links you find, or sync matching scripts from your own Scriptbin Saved list using an API access key.</p>
+      </div>
+      <div id="scriptbinGrid" class="source-grid"></div>
     </section>
 
     <section class="script-section">
@@ -126,6 +170,9 @@
           <option value="title">Title A–Z</option>
           <option value="favorites">Favorites first</option>
         </select>
+        <button id="scriptSearchBtn" class="secondary compact" type="button">Search</button>
+        <button id="scriptClearBtn" class="ghost compact" type="button">Clear</button>
+        <div id="scriptSearchCount" class="search-count">Showing all scripts</div>
       </div>
 
       <div id="emptyState" class="empty panel">
@@ -239,6 +286,38 @@
     </div>
   </dialog>
 
+  <dialog id="scriptbinPasteDialog" class="dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">SCRIPTBIN INDEX</div><h3>Add Scriptbin links</h3></div>
+      <button class="icon-btn" type="button" data-close-dialog="scriptbinPasteDialog">✕</button>
+    </div>
+    <p class="subtle">Paste one Scriptbin URL per line. If you include a title after a pipe, WhisperVault can immediately detect the target tags. Example: URL | [F4M] [SPH] Title.</p>
+    <label>Scriptbin entries
+      <textarea id="scriptbinPasteInput" rows="12" placeholder="https://scriptbin.works/u/writer/script-slug | [F4M] [SPH] Example title"></textarea>
+    </label>
+    <div id="scriptbinPasteStatus" class="status-box">Ready.</div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-close-dialog="scriptbinPasteDialog">Cancel</button>
+      <button id="scriptbinImportPastedBtn" type="button" class="primary">Index matching links</button>
+    </div>
+  </dialog>
+
+  <dialog id="scriptbinSavedDialog" class="dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">SCRIPTBIN SAVED API</div><h3>Sync saved matches</h3></div>
+      <button class="icon-btn" type="button" data-close-dialog="scriptbinSavedDialog">✕</button>
+    </div>
+    <p class="subtle">Optional: use a Scriptbin API access key to read metadata from your Saved scripts. The key is sent through your Worker only for this request and is not stored in WhisperVault.</p>
+    <label>Scriptbin API access key
+      <input id="scriptbinApiKeyInput" type="password" autocomplete="off" placeholder="Paste Scriptbin access key" />
+    </label>
+    <div id="scriptbinSyncStatus" class="status-box">Targets: SPE, SPH, small penis, small cock, tiny penis, prostate.</div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-close-dialog="scriptbinSavedDialog">Close</button>
+      <button id="scriptbinRunSavedSyncBtn" type="button" class="primary">Sync matching saves</button>
+    </div>
+  </dialog>
+
   <dialog id="playerDialog" class="dialog player-dialog">
     <div class="dialog-head">
       <div><div class="eyebrow">SCRIPT VOICE</div><h3 id="playerTitle">Script</h3><div id="playerMeta" class="subtle"></div></div>
@@ -275,6 +354,6 @@
   </dialog>
 
   <input id="backupFileInput" type="file" accept="application/json,.json" hidden />
-  <script src="app.js"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
