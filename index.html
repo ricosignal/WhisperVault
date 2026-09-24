@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#17131c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WhisperVault" />
+  <title>WhisperVault v3</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="ageGate" class="age-gate" hidden>
+    <div class="gate-card">
+      <div class="logo-mark">WV</div>
+      <h1>WhisperVault</h1>
+      <p>This private script-to-audio library is intended for adults. Content stays on this device unless you export it.</p>
+      <button id="enterBtn" class="primary full">I am 18 or older</button>
+      <button id="leaveBtn" class="ghost full">Exit</button>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand-wrap">
+      <div class="logo-mark small">WV</div>
+      <div>
+        <h1>WhisperVault</h1>
+        <div class="subtle">Private script-to-audio library · v3.0</div>
+      </div>
+    </div>
+    <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙︎</button>
+  </header>
+
+  <main>
+    <section class="hero panel">
+      <div>
+        <div class="eyebrow">PERSONAL • LOCAL-FIRST • 18+</div>
+        <h2>Your private audio library.</h2>
+        <p>Index Reddit script posts with authorized API access, organize source metadata, add text you own or have permission to use, and listen with voices installed on your device.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="addScriptBtn" class="primary">＋ Add script</button>
+        <button id="addSourcesBtn" class="secondary">＋ Add source links</button>
+        <button id="redditSyncBtn" class="secondary">↻ Reddit Sync</button>
+        <button id="importBackupBtn" class="ghost">Import backup</button>
+      </div>
+    </section>
+
+    <section class="toolbar panel">
+      <label class="search-wrap">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="Search title, author, tags…" autocomplete="off" />
+      </label>
+      <select id="categoryFilter" aria-label="Filter by category"><option value="all">All categories</option></select>
+      <select id="sortSelect" aria-label="Sort library">
+        <option value="newest">Newest</option>
+        <option value="title">Title A–Z</option>
+        <option value="favorites">Favorites first</option>
+      </select>
+    </section>
+
+    <section class="stats-row" id="statsRow"></section>
+
+    <section class="source-section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">SOURCE INBOX</div>
+          <h3>Reddit / web script links</h3>
+          <div class="subtle">Bulk-index titles, authors, tags and links from Reddit using an authorized OAuth token. Full post text is not bulk-copied.</div>
+        </div>
+        <div class="inline-actions">
+          <button id="redditSyncBtn2" class="ghost">Reddit Sync</button>
+          <button id="openRedditSearchBtn" class="ghost">Open GWA script search</button>
+          <button id="addSourcesBtn2" class="secondary">Add links</button>
+        </div>
+      </div>
+      <div id="sourceEmpty" class="empty compact-empty panel">
+        <h3>No source links yet</h3>
+        <p>Paste source links manually or use Reddit Sync to bulk-index approved API results. When you choose one, WhisperVault opens a new script form with its source already attached.</p>
+      </div>
+      <div id="sourceGrid" class="source-grid"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">LIBRARY</div>
+          <h3>Saved scripts</h3>
+        </div>
+        <button id="exportBtn" class="ghost">Export backup</button>
+      </div>
+      <div id="emptyState" class="empty panel">
+        <div class="empty-icon">♫</div>
+        <h3>No scripts yet</h3>
+        <p>Add text you have permission to use, or queue a source link first.</p>
+        <button id="emptyAddBtn" class="primary">Add a script</button>
+      </div>
+      <div id="libraryGrid" class="library-grid"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-scroll="top"><span>⌂</span><small>Library</small></button>
+    <button class="nav-item" id="navAdd"><span>＋</span><small>Add</small></button>
+    <button class="nav-item" id="navSources"><span>↗</span><small>Sources</small></button>
+    <button class="nav-item" id="navVoices"><span>◉</span><small>Voices</small></button>
+  </nav>
+
+  <dialog id="scriptDialog" class="dialog">
+    <form method="dialog" id="scriptForm">
+      <div class="dialog-head">
+        <div><div class="eyebrow">SCRIPT</div><h3 id="scriptDialogTitle">Add script</h3></div>
+        <button value="cancel" class="icon-btn" type="button" data-close-dialog="scriptDialog">✕</button>
+      </div>
+      <div class="form-grid two">
+        <label>Title<input id="scriptTitle" required maxlength="180" placeholder="Script title" /></label>
+        <label>Author<input id="scriptAuthor" maxlength="120" placeholder="Author / username" /></label>
+      </div>
+      <div class="form-grid two">
+        <label>Category
+          <select id="scriptCategory">
+            <option>F4M</option><option>M4F</option><option>F4F</option><option>M4M</option><option>F4A</option><option>M4A</option><option>A4A</option>
+            <option>Roleplay</option><option>ASMR</option><option>Romance</option><option>Other</option>
+          </select>
+        </label>
+        <label>Tags<input id="scriptTags" maxlength="300" placeholder="slow burn, comfort, story…" /></label>
+      </div>
+      <div class="form-grid two">
+        <label>Original source URL<input id="scriptSource" type="url" inputmode="url" placeholder="https://www.reddit.com/..." /></label>
+        <label>Source status
+          <select id="scriptPermission">
+            <option value="personal">Personal copy / permission confirmed</option>
+            <option value="author-ok">Author says fills are allowed</option>
+            <option value="own">My own script</option>
+            <option value="unknown">Unknown / review before use</option>
+          </select>
+        </label>
+      </div>
+      <label>Script text<textarea id="scriptText" required rows="14" placeholder="Paste the script text you have permission to use here."></textarea></label>
+      <div class="inline-actions left">
+        <button id="pasteClipboardBtn" type="button" class="secondary">Paste from clipboard</button>
+        <button id="parseTitleBtn" type="button" class="ghost">Parse tags from title</button>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="ghost" data-close-dialog="scriptDialog">Cancel</button>
+        <button type="submit" class="primary">Save script</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="sourcesDialog" class="dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">SOURCE INBOX</div><h3>Add source links</h3></div>
+      <button class="icon-btn" type="button" data-close-dialog="sourcesDialog">✕</button>
+    </div>
+    <p class="subtle">Paste one URL per line. WhisperVault stores the links locally so you can work through them later.</p>
+    <label>Source URLs<textarea id="sourceUrls" rows="11" placeholder="https://www.reddit.com/r/gonewildaudio/comments/...
+https://www.reddit.com/r/.../comments/..."></textarea></label>
+    <label>Optional default note<input id="sourceNote" maxlength="160" placeholder="e.g. newest script offers" /></label>
+    <div id="sourceImportSummary" class="subtle"></div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-close-dialog="sourcesDialog">Cancel</button>
+      <button id="saveSourcesBtn" type="button" class="primary">Save links</button>
+    </div>
+  </dialog>
+
+  <dialog id="redditSyncDialog" class="dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">AUTHORIZED REDDIT INDEX</div><h3>Reddit Sync</h3></div>
+      <button class="icon-btn" type="button" data-close-dialog="redditSyncDialog">✕</button>
+    </div>
+    <p class="subtle">This uses Reddit's OAuth Data API to index post metadata. Your token stays in this browser session and is sent only to Reddit.</p>
+    <div class="form-grid two">
+      <label>OAuth access token<input id="redditToken" type="password" autocomplete="off" placeholder="Bearer token from approved Reddit API access" /></label>
+      <label>Subreddit<input id="redditSubreddit" value="gonewildaudio" maxlength="80" /></label>
+    </div>
+    <div class="form-grid two">
+      <label>Search query<input id="redditQuery" value="[Script Offer]" maxlength="180" /></label>
+      <label>Sort
+        <select id="redditSort"><option value="new">Newest</option><option value="relevance">Relevance</option><option value="top">Top</option></select>
+      </label>
+    </div>
+    <div class="setting-row"><div><strong>What gets saved</strong><div class="subtle">Title, author, permalink, flair, tags, post ID and date. The post body is intentionally excluded from bulk import.</div></div><span class="status-pill">METADATA</span></div>
+    <div id="redditSyncStatus" class="subtle"></div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-close-dialog="redditSyncDialog">Close</button>
+      <button id="redditFetchBtn" type="button" class="primary">Fetch up to 100</button>
+      <button id="redditNextBtn" type="button" class="secondary" disabled>Next page</button>
+    </div>
+  </dialog>
+
+  <dialog id="playerDialog" class="dialog player-dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">NOW PLAYING</div><h3 id="playerTitle">Script</h3><div id="playerMeta" class="subtle"></div></div>
+      <button class="icon-btn" type="button" data-close-dialog="playerDialog">✕</button>
+    </div>
+    <div class="player-progress"><div class="progress-track"><div id="progressBar" class="progress-bar"></div></div><div id="progressText" class="subtle">Ready</div></div>
+    <div class="voice-card"><label>Voice<select id="voiceSelect"></select></label><button id="favoriteVoiceBtn" class="ghost compact" type="button">☆ Favorite voice</button></div>
+    <div class="slider-grid">
+      <label>Speed <span id="rateValue">1.00×</span><input id="rateRange" type="range" min="0.6" max="1.6" step="0.05" value="1" /></label>
+      <label>Pitch <span id="pitchValue">1.00</span><input id="pitchRange" type="range" min="0.6" max="1.4" step="0.05" value="1" /></label>
+      <label>Volume <span id="volumeValue">100%</span><input id="volumeRange" type="range" min="0" max="1" step="0.05" value="1" /></label>
+    </div>
+    <div class="player-controls"><button id="rewindBtn" class="round secondary" type="button">↶</button><button id="playPauseBtn" class="round primary big" type="button">▶</button><button id="stopBtn" class="round secondary" type="button">■</button></div>
+    <details class="script-preview"><summary>Show script</summary><div id="playerText"></div></details>
+  </dialog>
+
+  <dialog id="voicesDialog" class="dialog">
+    <div class="dialog-head"><div><div class="eyebrow">VOICE BANK</div><h3>Available voices</h3></div><button class="icon-btn" type="button" data-close-dialog="voicesDialog">✕</button></div>
+    <p class="subtle">These voices come from your phone, tablet, or computer.</p>
+    <input id="voiceSearch" type="search" placeholder="Search voices or language…" />
+    <div id="voiceList" class="voice-list"></div>
+  </dialog>
+
+  <dialog id="settingsDialog" class="dialog">
+    <div class="dialog-head"><div><div class="eyebrow">SETTINGS</div><h3>Privacy & backup</h3></div><button class="icon-btn" type="button" data-close-dialog="settingsDialog">✕</button></div>
+    <div class="setting-row"><div><strong>Local storage</strong><div class="subtle">Scripts, source links and preferences stay in this browser profile.</div></div><span class="status-pill">ON</span></div>
+    <div class="setting-row"><div><strong>Clear all local data</strong><div class="subtle">Deletes your library, source inbox, favorites and preferences.</div></div><button id="clearAllBtn" class="danger">Clear</button></div>
+    <div class="setting-row"><div><strong>Install on iPhone</strong><div class="subtle">After hosting on HTTPS, open in Safari → Share → Add to Home Screen.</div></div></div>
+    <div class="setting-row"><div><strong>Reddit Sync</strong><div class="subtle">v3 can bulk-index approved Reddit API results through OAuth. It saves metadata and links only; add full text only when you own it or have permission to copy it.</div></div></div>
+  </dialog>
+
+  <input id="backupFileInput" type="file" accept="application/json,.json" hidden />
+  <script src="app.js"></script>
+</body>
+</html>
