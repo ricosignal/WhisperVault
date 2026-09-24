@@ -10,7 +10,7 @@
   <title>WhisperVault</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=5" />
+  <link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
   <div id="ageGate" class="age-gate" hidden>
@@ -32,7 +32,7 @@
       <div class="logo-mark small">WV</div>
       <div>
         <h1>WhisperVault</h1>
-        <div class="subtle">Private creator-audio + script library · v5</div>
+        <div class="subtle">Private creator-audio + script + video library · v6</div>
       </div>
     </div>
     <div class="top-actions">
@@ -103,6 +103,44 @@
         <p>Import a Soundgasm creator profile, load the starter catalog, or paste recording links.</p>
       </div>
       <div id="sourceGrid" class="source-grid"></div>
+    </section>
+
+    <section class="media-section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">MEDIA / VIDEO</div>
+          <h3>Adult video links</h3>
+          <div class="subtle">A thumbnail-first index for public video pages matching your target tags. WhisperVault stores metadata and links only; videos remain on the original sites.</div>
+        </div>
+        <div class="inline-actions">
+          <button id="mediaAddBtn" class="primary compact" type="button">＋ Add video links</button>
+        </div>
+      </div>
+
+      <div id="mediaTargetChips" class="target-chips"></div>
+
+      <div class="toolbar panel media-toolbar">
+        <label class="search-wrap">
+          <span>⌕</span>
+          <input id="mediaSearchInput" type="search" placeholder="Search video title, site, tags…" autocomplete="off" />
+        </label>
+        <select id="mediaTagFilter" aria-label="Filter videos by target tag"><option value="all">All target tags</option></select>
+        <select id="mediaSortSelect" aria-label="Sort media catalog">
+          <option value="newest">Newest added</option>
+          <option value="title">Title A–Z</option>
+          <option value="site">Site A–Z</option>
+        </select>
+        <button id="mediaSearchBtn" class="secondary compact" type="button">Search</button>
+        <button id="mediaClearBtn" class="ghost compact" type="button">Clear</button>
+        <div id="mediaSearchCount" class="search-count">No videos indexed yet</div>
+      </div>
+
+      <div id="mediaEmpty" class="empty compact-empty panel">
+        <div class="empty-icon">▶</div>
+        <h3>No video links yet</h3>
+        <p>Add public adult-video page links. WhisperVault can try to pull the page title and thumbnail through your Worker, then clicking the card opens the original site.</p>
+      </div>
+      <div id="mediaGrid" class="media-grid"></div>
     </section>
 
     <section class="scriptbin-section">
@@ -188,6 +226,7 @@
   <nav class="bottom-nav">
     <button class="nav-item active" data-scroll="top"><span>⌂</span><small>Home</small></button>
     <button class="nav-item" id="navSources"><span>♫</span><small>Audio</small></button>
+    <button class="nav-item" id="navMedia"><span>▶</span><small>Video</small></button>
     <button class="nav-item" id="navAdd"><span>＋</span><small>Script</small></button>
     <button class="nav-item" id="navVoices"><span>◉</span><small>Voices</small></button>
   </nav>
@@ -286,6 +325,23 @@
     </div>
   </dialog>
 
+  <dialog id="mediaAddDialog" class="dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">MEDIA / VIDEO</div><h3>Add adult video links</h3></div>
+      <button class="icon-btn" type="button" data-close-dialog="mediaAddDialog">✕</button>
+    </div>
+    <p class="subtle">Paste one public video-page URL per line. Optional format: URL | title | tags. Tags can be comma-separated or [bracketed]. WhisperVault will keep only entries matching your target terms.</p>
+    <label>Video links
+      <textarea id="mediaPasteInput" rows="12" placeholder="https://example.com/video/123 | Example title | SPH, prostate"></textarea>
+    </label>
+    <label class="check-row"><input id="mediaFetchMeta" type="checkbox" checked /> Try to fetch page title and thumbnail through the Worker</label>
+    <div id="mediaAddStatus" class="status-box">Targets: SPE, SPH, small penis, small cock, tiny penis, prostate.</div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-close-dialog="mediaAddDialog">Cancel</button>
+      <button id="mediaImportBtn" type="button" class="primary">Add matching videos</button>
+    </div>
+  </dialog>
+
   <dialog id="scriptbinPasteDialog" class="dialog">
     <div class="dialog-head">
       <div><div class="eyebrow">SCRIPTBIN INDEX</div><h3>Add Scriptbin links</h3></div>
@@ -354,6 +410,6 @@
   </dialog>
 
   <input id="backupFileInput" type="file" accept="application/json,.json" hidden />
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
