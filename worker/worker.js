@@ -12,7 +12,54 @@ export default {
 
     try {
       if (url.pathname === "/" || url.pathname === "/health") {
-        return json({ ok: true, service: "whispervault-soundgasm", version: 2 }, 200, headers);
+        return json({ ok: true, service: "whispervault-soundgasm", version: 3 }, 200, headers);
+      }
+
+      if (url.pathname === "/api/media-meta" && request.method === "GET") {
+        const raw = url.searchParams.get("url") || "";
+        const pageUrl = normalizePublicPageUrl(raw);
+        if (!pageUrl) return json({ error: "Enter a valid public HTTPS page URL." }, 400, headers);
+
+        const res = await fetch(pageUrl, {
+          method: "GET",
+          redirect: "follow",
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; WhisperVault/3.0; +personal metadata indexer)",
+            "Accept": "text/html,application/xhtml+xml"
+          },
+          cf: { cacheTtl: 1800, cacheEverything: false }
+        });
+
+        if (!res.ok) return json({ error: "Source site returned " + res.status }, res.status, headers);
+        const type = res.headers.get("content-type") || "";
+        if (!/text\/html|application\/xhtml\+xml/i.test(type)) {
+          return json({ error: "That URL did not return an HTML page." }, 415, headers);
+        }
+        const len = Number(res.headers.get("content-length") || 0);
+        if (len && len > 2500000) return json({ error: "Page is too large to read metadata safely." }, 413, headers);
+
+        const html = await res.text();
+        const finalUrl = res.url || pageUrl;
+        const title = firstMeta(html, ["og:title", "twitter:title"]) || htmlTitle(html) || finalUrl;
+        const description = firstMeta(html, ["og:description", "twitter:description", "description"]) || "";
+        const rawThumb = firstMeta(html, ["og:image:secure_url", "og:image", "twitter:image", "twitter:image:src"]) || "";
+        const thumbnail = absolutize(rawThumb, finalUrl);
+        const keywords = firstMeta(html, ["keywords"]) || "";
+        const tags = uniqueStrings(
+          bracketTags(title).concat(bracketTags(description)).concat(
+            keywords.split(/[,;]+/).map(x => x.trim()).filter(Boolean)
+          )
+        ).slice(0, 30);
+        const site = new URL(finalUrl).hostname.replace(/^www\./, "");
+
+        return json({
+          sourceUrl: finalUrl,
+          site,
+          title: decode(stripTags(title)).replace(/\s+/g, " ").trim(),
+          description: decode(stripTags(description)).replace(/\s+/g, " ").trim().slice(0, 1500),
+          thumbnail,
+          tags
+        }, 200, headers);
       }
 
       if (url.pathname === "/api/scriptbin-saves" && request.method === "POST") {
@@ -129,6 +176,51 @@ function cors(origin) {
 
 function json(data, status, headers) {
   return new Response(JSON.stringify(data), { status, headers });
+}
+
+function normalizePublicPageUrl(raw) {
+  try {
+    const u = new URL(String(raw || "").trim());
+    if (u.protocol !== "https:") return null;
+    const h = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (!h || h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) return null;
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(h)) {
+      const p = h.split(".").map(Number);
+      if (p[0] === 10 || p[0] === 127 || p[0] === 0 || (p[0] === 169 && p[1] === 254) || (p[0] === 192 && p[1] === 168) || (p[0] === 172 && p[1] >= 16 && p[1] <= 31)) return null;
+    }
+    if (h.includes(":")) return null;
+    u.hash = "";
+    return u.toString();
+  } catch { return null; }
+}
+
+function regexEscape(s) {
+  return String(s).replace(/[.*+?^$()|[\]\\]/g, "\\function normalizeProfile(raw) {");
+}
+
+function firstMeta(html, names) {
+  for (const name of names) {
+    const escaped = regexEscape(name);
+    const a = new RegExp("<meta\\b[^>]*(?:property|name)=[\\\"']" + escaped + "[\\\"'][^>]*content=[\\\"']([^\\\"']*)[\\\"'][^>]*>", "i").exec(html);
+    if (a && a[1]) return decode(a[1]);
+    const b = new RegExp("<meta\\b[^>]*content=[\\\"']([^\\\"']*)[\\\"'][^>]*(?:property|name)=[\\\"']" + escaped + "[\\\"'][^>]*>", "i").exec(html);
+    if (b && b[1]) return decode(b[1]);
+  }
+  return "";
+}
+
+function htmlTitle(html) {
+  const m = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+  return m ? decode(stripTags(m[1])) : "";
+}
+
+function absolutize(value, base) {
+  if (!value) return "";
+  try { return new URL(decode(value), base).toString(); } catch { return ""; }
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.map(x => String(x || "").trim()).filter(Boolean))];
 }
 
 function normalizeProfile(raw) {
