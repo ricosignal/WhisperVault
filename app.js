@@ -2,7 +2,7 @@
 'use strict';
 
 var KEY='whispervault_v4_state', OLD_KEY='whispervault_v3_state', AGE='whispervault_age_ok';
-var empty={scripts:[],sources:[],prefs:{favoriteVoiceURI:'',rate:1,pitch:1,volume:1,workerUrl:''}};
+var empty={scripts:[],sources:[],scriptbin:[],prefs:{favoriteVoiceURI:'',rate:1,pitch:1,volume:1,workerUrl:''}};
 var state=load(),editId=null,currentScript=null,chunks=[],chunk=0,paused=false,currentAudioId=null;
 
 function $(id){return document.getElementById(id)}
@@ -11,7 +11,7 @@ function load(){
   try{
     var raw=localStorage.getItem(KEY)||localStorage.getItem(OLD_KEY)||'{}';
     var x=JSON.parse(raw);
-    return {scripts:x.scripts||[],sources:x.sources||[],prefs:Object.assign({},empty.prefs,x.prefs||{})}
+    return {scripts:x.scripts||[],sources:x.sources||[],scriptbin:x.scriptbin||[],prefs:Object.assign({},empty.prefs,x.prefs||{})}
   }catch(e){return clone(empty)}
 }
 function save(){localStorage.setItem(KEY,JSON.stringify(state));render()}
@@ -21,6 +21,17 @@ function openD(id){var d=$(id);if(d&&!d.open)d.showModal()}
 function closeD(id){var d=$(id);if(d&&d.open)d.close()}
 function words(s){return String(s||'').trim().split(/\s+/).filter(Boolean).length}
 function uniq(a){return Array.from(new Set(a.filter(Boolean)))}
+function norm(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim()}
+function matchesQuery(parts,q){
+  q=norm(q);if(!q)return true;
+  var hay=norm((parts||[]).join(' '));
+  return q.split(' ').every(function(token){return hay.indexOf(token)>=0})
+}
+var SCRIPTBIN_TARGETS=['SPE','SPH','small penis','small cock','tiny penis','prostate'];
+function targetMatches(text){
+  var n=norm(text);
+  return SCRIPTBIN_TARGETS.filter(function(t){return n.indexOf(norm(t))>=0})
+}
 function tagsFrom(t){
   var a=[],m,re=/\[([^\]]+)\]/g;
   while((m=re.exec(t||''))){
@@ -62,6 +73,7 @@ function stat(k,v){return '<div class="stat"><strong>'+v+'</strong><span>'+esc(k
 function render(){
   renderScripts();
   renderSources();
+  renderScriptbin();
   var creators=uniq(state.sources.map(function(x){return x.author||''})).length;
   var favs=state.sources.filter(function(x){return x.favorite}).length+state.scripts.filter(function(x){return x.favorite}).length;
   $('statsRow').innerHTML=stat('Audio',state.sources.length)+stat('Creators',creators)+stat('Scripts',state.scripts.length)+stat('Favorites',favs);
@@ -71,18 +83,20 @@ function render(){
 }
 
 function renderScripts(){
-  var q=($('searchInput').value||'').trim().toLowerCase(),cat=$('categoryFilter').value||'all',sort=$('sortSelect').value||'newest';
-  var cats=uniq(state.scripts.map(function(x){return x.category||''})).sort(),old=$('categoryFilter').value;
-  $('categoryFilter').innerHTML='<option value="all">All categories</option>'+cats.map(function(c){return '<option>'+esc(c)+'</option>'}).join('');
-  $('categoryFilter').value=cats.indexOf(old)>=0?old:'all';
+  var q=$('searchInput')?$('searchInput').value.trim():'',cat=$('categoryFilter')?$('categoryFilter').value||'all':'all',sort=$('sortSelect')?$('sortSelect').value||'newest':'newest';
+  var cats=uniq(state.scripts.map(function(x){return x.category||''})).sort(),old=$('categoryFilter')?$('categoryFilter').value:'all';
+  if($('categoryFilter')){
+    $('categoryFilter').innerHTML='<option value="all">All categories</option>'+cats.map(function(c){return '<option>'+esc(c)+'</option>'}).join('');
+    $('categoryFilter').value=cats.indexOf(old)>=0?old:'all';cat=$('categoryFilter').value
+  }
   var a=state.scripts.filter(function(s){
-    var hay=[s.title,s.author,(s.tags||[]).join(' '),s.text].join(' ').toLowerCase();
-    return (cat==='all'||s.category===cat)&&(!q||hay.indexOf(q)>=0)
+    return (cat==='all'||s.category===cat)&&matchesQuery([s.title,s.author,(s.tags||[]).join(' '),s.category,s.text],q)
   });
   if(sort==='title')a.sort(function(x,y){return x.title.localeCompare(y.title)});
-  else if(sort==='favorites')a.sort(function(x,y){return (y.favorite?1:0)-(x.favorite?1:0)||(y.updatedAt-x.updatedAt)});
+  else if(sort==='favorites')a.sort(function(x,y){return (y.favorite?1:0)-(x.favorite?1:0)||((y.updatedAt||0)-(x.updatedAt||0))});
   else a.sort(function(x,y){return (y.updatedAt||0)-(x.updatedAt||0)});
-  $('libraryGrid').innerHTML=a.map(scriptCard).join('');
+  if($('libraryGrid'))$('libraryGrid').innerHTML=a.length?a.map(scriptCard).join(''):(state.scripts.length?'<div class="no-results">No saved scripts match this search.</div>':'');
+  if($('scriptSearchCount'))$('scriptSearchCount').textContent=q||cat!=='all'?'Showing '+a.length+' of '+state.scripts.length+' scripts':'Showing all '+state.scripts.length+' scripts';
 }
 function sourceBrackets(s){
   var list=(s.brackets&&s.brackets.length?s.brackets:bracketCategories(s.title||''));
@@ -113,8 +127,75 @@ function renderSources(){
   if(sort==='title')a.sort(function(x,y){return (x.title||'').localeCompare(y.title||'')});
   else if(sort==='creator')a.sort(function(x,y){return (x.author||'').localeCompare(y.author||'')||(x.title||'').localeCompare(y.title||'')});
   else a.sort(function(x,y){return (y.createdAt||0)-(x.createdAt||0)});
-  $('sourceGrid').innerHTML=a.map(sourceCard).join('');
+  if($('sourceGrid'))$('sourceGrid').innerHTML=a.length?a.map(sourceCard).join(''):(state.sources.length?'<div class="no-results">No recordings match this search or category.</div>':'');
+  if($('sourceSearchCount'))$('sourceSearchCount').textContent=q||cat!=='all'?'Showing '+a.length+' of '+state.sources.length+' recordings':'Showing all '+state.sources.length+' recordings';
 }
+function renderScriptbin(){
+  if(!$('scriptbinGrid'))return;
+  var q=$('scriptbinSearchInput').value.trim(),tag=$('scriptbinTagFilter').value||'all',sort=$('scriptbinSortSelect').value||'newest';
+  var old=$('scriptbinTagFilter').value||'all';
+  var counts={};SCRIPTBIN_TARGETS.forEach(function(t){counts[t]=0});
+  state.scriptbin.forEach(function(x){(x.matchedTargets||targetMatches([x.title,x.tags&&x.tags.join(' ')].join(' '))).forEach(function(t){if(counts[t]!=null)counts[t]++})});
+  $('scriptbinTagFilter').innerHTML='<option value="all">All target tags</option>'+SCRIPTBIN_TARGETS.map(function(t){return '<option value="'+esc(t)+'">'+esc(t)+' · '+counts[t]+'</option>'}).join('');
+  $('scriptbinTagFilter').value=SCRIPTBIN_TARGETS.indexOf(old)>=0?old:'all';tag=$('scriptbinTagFilter').value;
+  $('scriptbinTargetChips').innerHTML=SCRIPTBIN_TARGETS.map(function(t){return '<button class="target-chip" type="button" data-scriptbin-chip="'+esc(t)+'"><strong>'+esc(t)+'</strong> · '+counts[t]+'</button>'}).join('');
+  var a=state.scriptbin.filter(function(x){
+    var mt=x.matchedTargets||targetMatches([x.title,(x.tags||[]).join(' ')].join(' '));x.matchedTargets=mt;
+    return (tag==='all'||mt.indexOf(tag)>=0)&&matchesQuery([x.title,x.writer,(x.tags||[]).join(' '),mt.join(' ')],q)
+  });
+  if(sort==='title')a.sort(function(x,y){return (x.title||'').localeCompare(y.title||'')});
+  else if(sort==='writer')a.sort(function(x,y){return (x.writer||'').localeCompare(y.writer||'')||(x.title||'').localeCompare(y.title||'')});
+  else a.sort(function(x,y){return (y.createdAt||0)-(x.createdAt||0)});
+  $('scriptbinGrid').innerHTML=a.length?a.map(scriptbinCard).join(''):(state.scriptbin.length?'<div class="no-results">No Scriptbin entries match this search.</div>':'');
+  $('scriptbinEmpty').hidden=state.scriptbin.length>0;
+  $('scriptbinSearchCount').textContent=q||tag!=='all'?'Showing '+a.length+' of '+state.scriptbin.length+' indexed matches':'Showing all '+state.scriptbin.length+' indexed matches';
+}
+function scriptbinCard(s){
+  var mt=(s.matchedTargets||[]).map(function(t){return '<span class="scriptbin-match">'+esc(t)+'</span>'}).join('');
+  var tags=(s.tags||[]).filter(function(t){return (s.matchedTargets||[]).indexOf(t)<0}).slice(0,5).map(function(t){return '<span class="tag">['+esc(t)+']</span>'}).join('');
+  return '<article class="source-card"><div class="eyebrow">SCRIPTBIN</div><h4>'+esc(s.title||s.url)+'</h4><div class="meta"><span>'+esc(s.writer||'Unknown writer')+'</span></div><div class="tag-row">'+mt+tags+'</div><div class="card-actions"><a class="primary linklike" target="_blank" rel="noopener" href="'+esc(s.url)+'">Open script ↗</a><button class="ghost" data-scriptbin-add="'+s.id+'">Add text</button><button class="danger" data-scriptbin-delete="'+s.id+'">Remove</button></div></article>'
+}
+function parseScriptbinLine(line){
+  var parts=String(line||'').split('|'),url=(parts.shift()||'').trim(),title=parts.join('|').trim();
+  if(!/^https?:\/\/(?:www\.)?scriptbin\.works\//i.test(url))return null;
+  var path='';
+  try{path=new URL(url).pathname.split('/').filter(Boolean);path=path[0]==='u'&&path[1]?path[1]:''}catch(e){}
+  var parsed=tagsFrom(title),targets=targetMatches([title,parsed.brackets.join(' ')].join(' '));
+  return {id:uid(),url:url,title:title||url,writer:path||'',tags:parsed.brackets||[],matchedTargets:targets,createdAt:Date.now()}
+}
+function importPastedScriptbin(){
+  var lines=$('scriptbinPasteInput').value.split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean),added=0,skipped=0;
+  lines.forEach(function(line){
+    var item=parseScriptbinLine(line);if(!item){skipped++;return}
+    if(state.scriptbin.some(function(x){return x.url===item.url})){skipped++;return}
+    if(!item.matchedTargets.length){skipped++;return}
+    state.scriptbin.push(item);added++
+  });
+  $('scriptbinPasteStatus').textContent='Added '+added+' matching entries. Skipped '+skipped+' invalid, duplicate, or non-matching lines.';
+  save()
+}
+async function syncScriptbinSaves(){
+  var key=$('scriptbinApiKeyInput').value.trim(),base=normalizeWorker(state.prefs.workerUrl);
+  if(!base){$('scriptbinSyncStatus').textContent='Connect your WhisperVault Worker first.';return}
+  if(!key){$('scriptbinSyncStatus').textContent='Paste a Scriptbin API access key first.';return}
+  $('scriptbinRunSavedSyncBtn').disabled=true;$('scriptbinSyncStatus').textContent='Reading your Scriptbin Saved metadata…';
+  try{
+    var r=await fetch(base+'/api/scriptbin-saves',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accessKey:key,targets:SCRIPTBIN_TARGETS})});
+    var d=await r.json();if(!r.ok)throw new Error(d.error||'Scriptbin sync failed');
+    var added=0;(d.items||[]).forEach(function(item){
+      if(!item.url||state.scriptbin.some(function(x){return x.url===item.url}))return;
+      state.scriptbin.push({id:uid(),url:item.url,title:item.title||item.url,writer:item.writer||'',tags:item.tags||tagsFrom(item.title||'').brackets,matchedTargets:item.matchedTargets||targetMatches(item.title||''),createdAt:Date.now()});added++
+    });
+    save();$('scriptbinSyncStatus').textContent='Found '+(d.count||0)+' matching saved scripts. Added '+added+' new entries.'
+  }catch(e){$('scriptbinSyncStatus').textContent='Sync failed: '+e.message}
+  finally{$('scriptbinRunSavedSyncBtn').disabled=false}
+}
+function copyGwasiQuery(){
+  var q='('+SCRIPTBIN_TARGETS.map(function(t){return t.indexOf(' ')>=0?'"'+t+'"':t}).join(' OR ')+') type:script';
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(q).then(function(){alert('GWASI discovery query copied. Paste it into gwasi.com search.')} ).catch(function(){prompt('Copy this GWASI query:',q)})}
+  else prompt('Copy this GWASI query:',q)
+}
+
 function scriptCard(s){
   var tags=(s.tags||[]).slice(0,6).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join('');
   return '<article class="card"><div class="eyebrow">'+esc(s.category||'OTHER')+'</div><h4>'+esc(s.title)+'</h4><div class="meta"><span>'+esc(s.author||'Unknown author')+'</span><span>•</span><span>'+words(s.text).toLocaleString()+' words</span></div><div class="tag-row">'+tags+'</div><div class="card-preview">'+esc(s.text)+'</div><div class="card-actions"><button class="primary" data-play-script="'+s.id+'">▶ Listen</button><button class="ghost '+(s.favorite?'fav':'')+'" data-fav-script="'+s.id+'">'+(s.favorite?'★':'☆')+'</button><button class="ghost" data-edit-script="'+s.id+'">Edit</button>'+(s.source?'<a class="ghost linklike" target="_blank" rel="noopener" href="'+esc(s.source)+'">Source ↗</a>':'')+'<button class="danger" data-delete-script="'+s.id+'">Delete</button></div></article>'
@@ -248,16 +329,16 @@ function progress(x){$('progressBar').style.width=Math.round(x*100)+'%';$('progr
 function stopSpeech(){if(window.speechSynthesis)speechSynthesis.cancel();paused=false;if($('playPauseBtn'))$('playPauseBtn').textContent='▶'}
 
 function exportData(){
-  var b=new Blob([JSON.stringify({version:4,exportedAt:new Date().toISOString(),scripts:state.scripts,sources:state.sources,prefs:state.prefs},null,2)],{type:'application/json'}),a=document.createElement('a');
+  var b=new Blob([JSON.stringify({version:5,exportedAt:new Date().toISOString(),scripts:state.scripts,sources:state.sources,scriptbin:state.scriptbin,prefs:state.prefs},null,2)],{type:'application/json'}),a=document.createElement('a');
   a.href=URL.createObjectURL(b);a.download='WhisperVault-backup.json';a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},500)
 }
 async function importData(f){
-  try{var x=JSON.parse(await f.text());state={scripts:x.scripts||[],sources:x.sources||[],prefs:Object.assign({},empty.prefs,x.prefs||{})};save();alert('Backup imported.')}
+  try{var x=JSON.parse(await f.text());state={scripts:x.scripts||[],sources:x.sources||[],scriptbin:x.scriptbin||[],prefs:Object.assign({},empty.prefs,x.prefs||{})};save();alert('Backup imported.')}
   catch(e){alert('Import failed: '+e.message)}
 }
 
 document.addEventListener('click',function(e){
-  var b=e.target.closest('button,[data-play-script],[data-edit-script],[data-fav-script],[data-delete-script],[data-play-source],[data-fav-source],[data-use-source],[data-delete-source],[data-voice-uri],[data-preview-voice],[data-close-dialog]');
+  var b=e.target.closest('button,[data-play-script],[data-edit-script],[data-fav-script],[data-delete-script],[data-play-source],[data-fav-source],[data-use-source],[data-delete-source],[data-scriptbin-add],[data-scriptbin-delete],[data-scriptbin-chip],[data-voice-uri],[data-preview-voice],[data-close-dialog]');
   if(!b)return;
   if(b.dataset.closeDialog)return closeD(b.dataset.closeDialog);
   if(b.dataset.playScript)return playScript(b.dataset.playScript);
@@ -268,6 +349,9 @@ document.addEventListener('click',function(e){
   if(b.dataset.favSource){var s=state.sources.find(function(x){return x.id===b.dataset.favSource});if(s){s.favorite=!s.favorite;save()}return}
   if(b.dataset.useSource){resetScriptForm(state.sources.find(function(x){return x.id===b.dataset.useSource}));openD('scriptDialog');return}
   if(b.dataset.deleteSource){if(confirm('Remove this recording from your local catalog?')){state.sources=state.sources.filter(function(x){return x.id!==b.dataset.deleteSource});save()}return}
+  if(b.dataset.scriptbinAdd){var sb=state.scriptbin.find(function(x){return x.id===b.dataset.scriptbinAdd});if(sb){resetScriptForm({title:sb.title,author:sb.writer,category:'Other',tags:sb.tags||[],url:sb.url});openD('scriptDialog')}return}
+  if(b.dataset.scriptbinDelete){state.scriptbin=state.scriptbin.filter(function(x){return x.id!==b.dataset.scriptbinDelete});save();return}
+  if(b.dataset.scriptbinChip){$('scriptbinTagFilter').value=b.dataset.scriptbinChip;renderScriptbin();return}
   if(b.dataset.voiceUri){state.prefs.favoriteVoiceURI=b.dataset.voiceUri;save();fillVoices();return}
   if(b.dataset.previewVoice){previewVoice(b.dataset.previewVoice);return}
 });
@@ -280,6 +364,9 @@ $('scriptForm').addEventListener('submit',function(e){
 
 $('addScriptBtn').onclick=$('emptyAddBtn').onclick=$('navAdd').onclick=function(){resetScriptForm();openD('scriptDialog')};
 $('addSourcesBtn').onclick=function(){openD('sourcesDialog')};$('saveSourcesBtn').onclick=addLinks;
+$('scriptbinPasteBtn').onclick=function(){openD('scriptbinPasteDialog')};$('scriptbinImportPastedBtn').onclick=importPastedScriptbin;
+$('scriptbinSyncSavedBtn').onclick=function(){openD('scriptbinSavedDialog')};$('scriptbinRunSavedSyncBtn').onclick=syncScriptbinSaves;
+$('copyGwasiQueryBtn').onclick=copyGwasiQuery;
 $('loadSoundgasmBtn').onclick=$('loadSoundgasmBtn2').onclick=loadStarter;
 $('importCreatorBtn').onclick=$('importCreatorBtn2').onclick=$('openCreatorSettingsBtn').onclick=openCreatorDialog;
 $('testWorkerBtn').onclick=testWorker;$('runCreatorImportBtn').onclick=importCreator;
@@ -291,8 +378,13 @@ $('pasteClipboardBtn').onclick=async function(){try{$('scriptText').value=await 
 $('exportBtn').onclick=exportData;$('backupFileInput').onchange=function(e){if(e.target.files[0])importData(e.target.files[0]);e.target.value=''};
 $('settingsBtn').onclick=function(){openD('settingsDialog')};$('navSources').onclick=function(){document.querySelector('.source-section').scrollIntoView({behavior:'smooth'})};
 $('clearAllBtn').onclick=function(){if(confirm('Delete all WhisperVault local data on this device?')){state=clone(empty);localStorage.removeItem(KEY);localStorage.removeItem(OLD_KEY);save()}};
-$('searchInput').oninput=renderScripts;$('categoryFilter').onchange=renderScripts;$('sortSelect').onchange=renderScripts;
-$('sourceSearchInput').oninput=renderSources;$('sourceCategoryFilter').onchange=renderSources;$('sourceSortSelect').onchange=renderSources;
+function bindSearchInput(id,fn){var el=$(id);if(!el)return;['input','search','change','keyup'].forEach(function(evt){el.addEventListener(evt,fn)})}
+bindSearchInput('searchInput',renderScripts);$('categoryFilter').addEventListener('change',renderScripts);$('sortSelect').addEventListener('change',renderScripts);
+bindSearchInput('sourceSearchInput',renderSources);$('sourceCategoryFilter').addEventListener('change',renderSources);$('sourceSortSelect').addEventListener('change',renderSources);
+bindSearchInput('scriptbinSearchInput',renderScriptbin);$('scriptbinTagFilter').addEventListener('change',renderScriptbin);$('scriptbinSortSelect').addEventListener('change',renderScriptbin);
+$('scriptSearchBtn').onclick=renderScripts;$('scriptClearBtn').onclick=function(){$('searchInput').value='';$('categoryFilter').value='all';renderScripts()};
+$('sourceSearchBtn').onclick=renderSources;$('sourceClearBtn').onclick=function(){$('sourceSearchInput').value='';$('sourceCategoryFilter').value='all';renderSources()};
+$('scriptbinSearchBtn').onclick=renderScriptbin;$('scriptbinClearBtn').onclick=function(){$('scriptbinSearchInput').value='';$('scriptbinTagFilter').value='all';renderScriptbin()};
 $('voiceSearch').oninput=renderVoices;
 $('rateRange').oninput=function(e){$('rateValue').textContent=Number(e.target.value).toFixed(2)+'×';state.prefs.rate=Number(e.target.value);localStorage.setItem(KEY,JSON.stringify(state))};
 $('pitchRange').oninput=function(e){$('pitchValue').textContent=Number(e.target.value).toFixed(2);state.prefs.pitch=Number(e.target.value);localStorage.setItem(KEY,JSON.stringify(state))};
