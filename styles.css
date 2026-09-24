@@ -57,3 +57,6 @@ main{max-width:1180px;margin:0 auto;padding:18px 18px 100px}.panel{background:li
 .check-row{display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;margin-top:12px}
 .check-row input{width:auto}
 .media-section .target-chip{border-color:#6d3655}
+
+.source-search-links{margin-top:12px}
+.source-search-links .inline-actions{margin-top:8px}
