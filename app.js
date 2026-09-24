@@ -133,6 +133,51 @@ function renderSources(){
   if($('sourceGrid'))$('sourceGrid').innerHTML=a.length?a.map(sourceCard).join(''):(state.sources.length?'<div class="no-results">No recordings match this search or category.</div>':'');
   if($('sourceSearchCount'))$('sourceSearchCount').textContent=q||cat!=='all'?'Showing '+a.length+' of '+state.sources.length+' recordings':'Showing all '+state.sources.length+' recordings';
 }
+function mediaSearchUrls(q){
+  q=String(q||'').trim();
+  var enc=encodeURIComponent(q),plus=encodeURIComponent(q).replace(/%20/g,'+');
+  return {
+    pornhub:'https://www.pornhub.com/video/search?search='+plus,
+    xvideos:'https://www.xvideos.com/?k='+plus,
+    xnxx:'https://www.xnxx.com/search/'+enc,
+    xhamster:'https://xhamster.com/search/'+enc,
+    spankbang:'https://spankbang.com/s/'+plus+'/'
+  }
+}
+function renderMediaSourceLinks(q){
+  if(!$('mediaSourceLinks'))return;
+  q=String(q||'').trim();
+  if(!q){$('mediaSourceLinks').innerHTML='';return}
+  var urls=mediaSearchUrls(q),names={pornhub:'Pornhub',xvideos:'XVideos',xnxx:'XNXX',xhamster:'xHamster',spankbang:'SpankBang'};
+  $('mediaSourceLinks').innerHTML='<div class="subtle">Open source searches directly:</div><div class="inline-actions left">'+Object.keys(urls).map(function(k){return '<a class="ghost linklike compact" target="_blank" rel="noopener noreferrer" href="'+esc(urls[k])+'">'+names[k]+' ↗</a>'}).join('')+'</div>'
+}
+function openMediaDiscover(q){
+  q=String(q||'').trim();$('mediaDiscoverQuery').value=q;$('mediaDiscoverStatus').textContent='Ready.';renderMediaSourceLinks(q);openD('mediaDiscoverDialog')
+}
+async function discoverMedia(){
+  var q=$('mediaDiscoverQuery').value.trim(),source=$('mediaDiscoverSource').value||'all',base=normalizeWorker(state.prefs.workerUrl);
+  if(!q){$('mediaDiscoverStatus').textContent='Enter a search term first.';return}
+  renderMediaSourceLinks(q);
+  if(!base){$('mediaDiscoverStatus').textContent='Your Worker is not connected. Use one of the source search buttons below.';return}
+  $('mediaDiscoverRunBtn').disabled=true;$('mediaDiscoverStatus').textContent='Searching supported sources…';
+  try{
+    var r=await fetch(base+'/api/video-discover?q='+encodeURIComponent(q)+'&source='+encodeURIComponent(source)+'&limit=60',{cache:'no-store'}),d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Discovery failed');
+    var added=0;
+    (d.items||[]).forEach(function(item){
+      if(!item.url||state.media.some(function(x){return x.url===item.url}))return;
+      var tags=uniq((item.tags||[]).concat([q])),mt=targetMatches([q,item.title,item.description,tags.join(' ')].join(' '));
+      if(!mt.length)return;
+      state.media.push({id:uid(),url:item.url,title:item.title||item.url,site:item.site||siteFromUrl(item.url),thumbnail:item.thumbnail||'',description:item.description||'',tags:tags,matchedTargets:mt,createdAt:Date.now()});added++
+    });
+    save();
+    var sourceNotes=(d.sources||[]).map(function(x){return x.name+': '+x.count+(x.error?' ('+x.error+')':'')}).join(' · ');
+    $('mediaDiscoverStatus').textContent='Found '+(d.count||0)+' results. Added '+added+' new matching video'+(added===1?'':'s')+'.'+(sourceNotes?' '+sourceNotes:'');
+  }catch(e){
+    $('mediaDiscoverStatus').textContent='Automatic discovery is not active on this Worker yet: '+e.message+'. Use the source search buttons below, or update the Worker.'
+  }finally{$('mediaDiscoverRunBtn').disabled=false}
+}
+
 function renderMedia(){
   if(!$('mediaGrid'))return;
   var q=$('mediaSearchInput').value.trim(),tag=$('mediaTagFilter').value||'all',sort=$('mediaSortSelect').value||'newest';
@@ -232,7 +277,10 @@ async function importMediaLinks(){
       }catch(e){skipped++}
       continue
     }
-    var item=parseMediaLine(lines[i]);if(!item){skipped++;continue}
+    var item=parseMediaLine(lines[i]);if(!item){
+      if(!/^https?:\/\//i.test(lines[i])){$('mediaAddStatus').textContent='“'+lines[i].slice(0,60)+'” is a search term, not a video URL. Use Discover videos for search terms.'}
+      skipped++;continue
+    }
     if(state.media.some(function(x){return x.url===item.url})){skipped++;continue}
     if(fetchMeta)item=await fetchMediaMeta(item);
     if(!item.title)item.title=item.url;
@@ -370,7 +418,7 @@ async function testWorker(){
   try{
     var r=await fetch(base+'/health',{cache:'no-store'});var d=await r.json();
     if(!r.ok||!d.ok)throw new Error(d.error||'Connection failed');
-    state.prefs.workerUrl=base;save();$('creatorImportStatus').textContent='Connected. Worker is ready.'
+    state.prefs.workerUrl=base;save();$('creatorImportStatus').textContent='Connected. Worker v'+(d.version||'?')+' is ready.'
   }catch(e){$('creatorImportStatus').textContent='Connection failed: '+e.message}
 }
 async function importCreator(){
@@ -471,7 +519,11 @@ document.addEventListener('click',function(e){
   if(b.dataset.scriptbinChip){$('scriptbinTagFilter').value=b.dataset.scriptbinChip;renderScriptbin();return}
   if(b.dataset.mediaDelete){state.media=state.media.filter(function(x){return x.id!==b.dataset.mediaDelete});save();return}
   if(b.dataset.mediaRefresh){refreshMedia(b.dataset.mediaRefresh);return}
-  if(b.dataset.mediaChip){$('mediaTagFilter').value=b.dataset.mediaChip;renderMedia();return}
+  if(b.dataset.mediaChip){
+    var t=b.dataset.mediaChip,cnt=state.media.filter(function(x){return (x.matchedTargets||[]).indexOf(t)>=0}).length;
+    if(cnt===0){openMediaDiscover(t);return}
+    $('mediaTagFilter').value=t;renderMedia();return
+  }
   if(b.dataset.voiceUri){state.prefs.favoriteVoiceURI=b.dataset.voiceUri;save();fillVoices();return}
   if(b.dataset.previewVoice){previewVoice(b.dataset.previewVoice);return}
 });
@@ -484,7 +536,9 @@ $('scriptForm').addEventListener('submit',function(e){
 
 $('addScriptBtn').onclick=$('emptyAddBtn').onclick=$('navAdd').onclick=function(){resetScriptForm();openD('scriptDialog')};
 $('addSourcesBtn').onclick=function(){openD('sourcesDialog')};$('saveSourcesBtn').onclick=addLinks;
-$('mediaDiscoverAllBtn').onclick=discoverAllMedia;$('mediaAddBtn').onclick=function(){openD('mediaAddDialog')};$('mediaImportBtn').onclick=importMediaLinks;
+$('mediaDiscoverAllBtn').onclick=discoverAllMedia;$('mediaDiscoverBtn').onclick=function(){openMediaDiscover('')};$('mediaDiscoverRunBtn').onclick=discoverMedia;
+bindSearchInput('mediaDiscoverQuery',function(){renderMediaSourceLinks($('mediaDiscoverQuery').value)});
+$('mediaAddBtn').onclick=function(){openD('mediaAddDialog')};$('mediaImportBtn').onclick=importMediaLinks;
 $('scriptbinPasteBtn').onclick=function(){openD('scriptbinPasteDialog')};$('scriptbinImportPastedBtn').onclick=importPastedScriptbin;
 $('scriptbinSyncSavedBtn').onclick=function(){openD('scriptbinSavedDialog')};$('scriptbinRunSavedSyncBtn').onclick=syncScriptbinSaves;
 $('copyGwasiQueryBtn').onclick=copyGwasiQuery;
