@@ -113,7 +113,8 @@
           <div class="subtle">A thumbnail-first index for public video pages matching your target tags. WhisperVault stores metadata and links only; videos remain on the original sites.</div>
         </div>
         <div class="inline-actions">
-          <button id="mediaAddBtn" class="primary compact" type="button">＋ Add video links</button>
+          <button id="mediaDiscoverAllBtn" class="primary compact" type="button">⌕ Discover target videos</button>
+          <button id="mediaAddBtn" class="ghost compact" type="button">＋ Find / add videos</button>
         </div>
       </div>
 
@@ -327,18 +328,18 @@
 
   <dialog id="mediaAddDialog" class="dialog">
     <div class="dialog-head">
-      <div><div class="eyebrow">MEDIA / VIDEO</div><h3>Add adult video links</h3></div>
+      <div><div class="eyebrow">MEDIA / VIDEO</div><h3>Find or add adult videos</h3></div>
       <button class="icon-btn" type="button" data-close-dialog="mediaAddDialog">✕</button>
     </div>
-    <p class="subtle">Paste one public video-page URL per line. Optional format: URL | title | tags. Tags can be comma-separated or [bracketed]. WhisperVault will keep only entries matching your target terms.</p>
-    <label>Video links
-      <textarea id="mediaPasteInput" rows="12" placeholder="https://example.com/video/123 | Example title | SPH, prostate"></textarea>
+    <p class="subtle">Enter a target phrase like <strong>small penis</strong> to discover matching public video pages, or paste a direct video-page URL. You can use one search/URL per line.</p>
+    <label>Search terms or video links
+      <textarea id="mediaPasteInput" rows="12" placeholder="small penis&#10;SPH&#10;prostate&#10;&#10;or paste a video URL"></textarea>
     </label>
     <label class="check-row"><input id="mediaFetchMeta" type="checkbox" checked /> Try to fetch page title and thumbnail through the Worker</label>
     <div id="mediaAddStatus" class="status-box">Targets: SPE, SPH, small penis, small cock, tiny penis, prostate.</div>
     <div class="dialog-actions">
       <button type="button" class="ghost" data-close-dialog="mediaAddDialog">Cancel</button>
-      <button id="mediaImportBtn" type="button" class="primary">Add matching videos</button>
+      <button id="mediaImportBtn" type="button" class="primary">Find / add videos</button>
     </div>
   </dialog>
 
