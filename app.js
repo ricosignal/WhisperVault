@@ -23,9 +23,16 @@ function words(s){return String(s||'').trim().split(/\s+/).filter(Boolean).lengt
 function uniq(a){return Array.from(new Set(a.filter(Boolean)))}
 function tagsFrom(t){
   var a=[],m,re=/\[([^\]]+)\]/g;
-  while((m=re.exec(t||'')))a.push(m[1].trim());
+  while((m=re.exec(t||''))){
+    var v=String(m[1]||'').trim().replace(/\s+/g,' ');
+    if(v)a.push(v);
+  }
+  a=uniq(a);
   var c=a.find(function(x){return /^(F4M|M4F|F4F|M4M|F4A|M4A|A4A)$/i.test(x)});
-  return {category:c?c.toUpperCase():'',tags:a.filter(function(x){return x!==c}).slice(0,12)}
+  return {category:c?c.toUpperCase():'',tags:a.filter(function(x){return x!==c}),brackets:a}
+}
+function bracketCategories(title){
+  return tagsFrom(title).brackets||[]
 }
 function inferCategory(title){
   var m=String(title||'').match(/\b(F4M|M4F|F4F|M4M|F4A|M4A|A4A)\b/i);
@@ -77,14 +84,31 @@ function renderScripts(){
   else a.sort(function(x,y){return (y.updatedAt||0)-(x.updatedAt||0)});
   $('libraryGrid').innerHTML=a.map(scriptCard).join('');
 }
+function sourceBrackets(s){
+  var list=(s.brackets&&s.brackets.length?s.brackets:bracketCategories(s.title||''));
+  if(!s.brackets||!s.brackets.length)s.brackets=list;
+  return uniq(list)
+}
+function rebuildBracketCategories(){
+  state.sources.forEach(function(s){
+    s.brackets=sourceBrackets(s);
+    if(!s.category||s.category==='Soundgasm'){
+      var align=s.brackets.find(function(x){return /^(F4M|M4F|F4F|M4M|F4A|M4A|A4A)$/i.test(x)});
+      if(align)s.category=align.toUpperCase()
+    }
+  })
+}
 function renderSources(){
+  rebuildBracketCategories();
   var q=($('sourceSearchInput').value||'').trim().toLowerCase(),cat=$('sourceCategoryFilter').value||'all',sort=$('sourceSortSelect').value||'newest';
-  var cats=uniq(state.sources.map(function(x){return x.category||'Soundgasm'})).sort(),old=$('sourceCategoryFilter').value;
-  $('sourceCategoryFilter').innerHTML='<option value="all">All categories</option>'+cats.map(function(c){return '<option>'+esc(c)+'</option>'}).join('');
+  var counts={};
+  state.sources.forEach(function(s){sourceBrackets(s).forEach(function(x){counts[x]=(counts[x]||0)+1})});
+  var cats=Object.keys(counts).sort(function(a,b){return a.localeCompare(b,undefined,{sensitivity:'base'})}),old=$('sourceCategoryFilter').value;
+  $('sourceCategoryFilter').innerHTML='<option value="all">All bracket categories ('+cats.length+')</option>'+cats.map(function(x){return '<option value="'+esc(x)+'">['+esc(x)+'] · '+counts[x]+'</option>'}).join('');
   $('sourceCategoryFilter').value=cats.indexOf(old)>=0?old:'all';
   var a=state.sources.filter(function(s){
-    var hay=[s.title,s.author,s.category,(s.tags||[]).join(' ')].join(' ').toLowerCase();
-    return (cat==='all'||(s.category||'Soundgasm')===cat)&&(!q||hay.indexOf(q)>=0)
+    var brackets=sourceBrackets(s),hay=[s.title,s.author,s.category,brackets.join(' '),(s.tags||[]).join(' ')].join(' ').toLowerCase();
+    return (cat==='all'||brackets.indexOf(cat)>=0)&&(!q||hay.indexOf(q)>=0)
   });
   if(sort==='title')a.sort(function(x,y){return (x.title||'').localeCompare(y.title||'')});
   else if(sort==='creator')a.sort(function(x,y){return (x.author||'').localeCompare(y.author||'')||(x.title||'').localeCompare(y.title||'')});
@@ -96,8 +120,10 @@ function scriptCard(s){
   return '<article class="card"><div class="eyebrow">'+esc(s.category||'OTHER')+'</div><h4>'+esc(s.title)+'</h4><div class="meta"><span>'+esc(s.author||'Unknown author')+'</span><span>•</span><span>'+words(s.text).toLocaleString()+' words</span></div><div class="tag-row">'+tags+'</div><div class="card-preview">'+esc(s.text)+'</div><div class="card-actions"><button class="primary" data-play-script="'+s.id+'">▶ Listen</button><button class="ghost '+(s.favorite?'fav':'')+'" data-fav-script="'+s.id+'">'+(s.favorite?'★':'☆')+'</button><button class="ghost" data-edit-script="'+s.id+'">Edit</button>'+(s.source?'<a class="ghost linklike" target="_blank" rel="noopener" href="'+esc(s.source)+'">Source ↗</a>':'')+'<button class="danger" data-delete-script="'+s.id+'">Delete</button></div></article>'
 }
 function sourceCard(s){
-  var tags=(s.tags||[]).slice(0,6).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join('');
-  return '<article class="source-card"><div class="eyebrow">'+esc(s.category||'SOUNDGASM')+'</div><h4>'+esc(s.title||s.url)+'</h4><div class="meta"><span>'+esc(s.author||'Unknown creator')+'</span></div><div class="tag-row">'+tags+'</div><div class="card-actions"><button class="primary" data-play-source="'+s.id+'">▶ Play</button><button class="ghost '+(s.favorite?'fav':'')+'" data-fav-source="'+s.id+'">'+(s.favorite?'★':'☆')+'</button><a class="ghost linklike" target="_blank" rel="noopener" href="'+esc(s.url)+'">Soundgasm ↗</a><button class="ghost" data-use-source="'+s.id+'">Add script</button><button class="danger" data-delete-source="'+s.id+'">Remove</button></div></article>'
+  var brackets=sourceBrackets(s),shown=brackets.slice(0,10),tags=shown.map(function(t){return '<span class="tag">['+esc(t)+']</span>'}).join('');
+  if(brackets.length>shown.length)tags+='<span class="tag">+'+(brackets.length-shown.length)+' more</span>';
+  var eyebrow=brackets.length?(brackets.length+' bracket categor'+(brackets.length===1?'y':'ies')):(s.category||'SOUNDGASM');
+  return '<article class="source-card"><div class="eyebrow">'+esc(eyebrow)+'</div><h4>'+esc(s.title||s.url)+'</h4><div class="meta"><span>'+esc(s.author||'Unknown creator')+'</span></div><div class="tag-row">'+tags+'</div><div class="card-actions"><button class="primary" data-play-source="'+s.id+'">▶ Play</button><button class="ghost '+(s.favorite?'fav':'')+'" data-fav-source="'+s.id+'">'+(s.favorite?'★':'☆')+'</button><a class="ghost linklike" target="_blank" rel="noopener" href="'+esc(s.url)+'">Soundgasm ↗</a><button class="ghost" data-use-source="'+s.id+'">Add script</button><button class="danger" data-delete-source="'+s.id+'">Remove</button></div></article>'
 }
 
 function resetScriptForm(src){
@@ -117,7 +143,7 @@ function addLinks(){
   $('sourceUrls').value.split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean).forEach(function(url){
     if(!/^https?:\/\//i.test(url)||state.sources.some(function(s){return s.url===url}))return;
     var sg=soundgasmMeta(url)||{};
-    state.sources.push({id:uid(),url:url,title:note||sg.title||url,author:sg.author||'',category:sg.category||'Soundgasm',tags:sg.tags||['Soundgasm'],favorite:false,createdAt:Date.now()});n++
+    var ttl=note||sg.title||url;state.sources.push({id:uid(),url:url,title:ttl,author:sg.author||'',category:sg.category||'Soundgasm',tags:sg.tags||['Soundgasm'],brackets:bracketCategories(ttl),favorite:false,createdAt:Date.now()});n++
   });
   $('sourceImportSummary').textContent='Added '+n+' new recording link'+(n===1?'':'s')+'.';$('sourceUrls').value='';save()
 }
@@ -130,7 +156,7 @@ async function loadStarter(){
     list.forEach(function(item){
       if(!item.url||state.sources.some(function(s){return s.url===item.url}))return;
       var sg=soundgasmMeta(item.url)||{};
-      state.sources.push({id:uid(),url:item.url,title:item.title||sg.title||item.url,author:item.author||sg.author||'',category:item.category||sg.category||'Soundgasm',tags:uniq((item.tags||[]).concat(sg.tags||['Soundgasm'])),favorite:false,createdAt:Date.now()});n++
+      var ttl=item.title||sg.title||item.url;state.sources.push({id:uid(),url:item.url,title:ttl,author:item.author||sg.author||'',category:item.category||sg.category||'Soundgasm',tags:uniq((item.tags||[]).concat(sg.tags||['Soundgasm'])),brackets:item.brackets||bracketCategories(ttl),favorite:false,createdAt:Date.now()});n++
     });save();alert('Added '+n+' starter recording'+(n===1?'':'s')+'.')
   }catch(e){alert('Could not load the starter catalog: '+e.message)}
   finally{buttons.forEach(function(b){b.disabled=false})}
@@ -160,7 +186,7 @@ async function importCreator(){
     var n=0;
     (d.items||[]).forEach(function(item){
       if(!item.url||state.sources.some(function(s){return s.url===item.url}))return;
-      state.sources.push({id:uid(),url:item.url,title:item.title||item.url,author:item.author||d.creator||'',category:item.category||inferCategory(item.title),tags:uniq((item.tags||[]).concat(inferTags(item.title))),favorite:false,createdAt:Date.now()});n++
+      var ttl=item.title||item.url;state.sources.push({id:uid(),url:item.url,title:ttl,author:item.author||d.creator||'',category:item.category||inferCategory(item.title),tags:uniq((item.tags||[]).concat(inferTags(item.title))),brackets:item.brackets||bracketCategories(ttl),favorite:false,createdAt:Date.now()});n++
     });
     state.prefs.workerUrl=base;save();
     $('creatorImportStatus').textContent='Found '+(d.count||0)+' recordings. Added '+n+' new ones.';
@@ -181,7 +207,7 @@ async function playSource(i){
     var r=await fetch(base+'/api/recording?url='+encodeURIComponent(s.url),{cache:'no-store'}),d=await r.json();
     if(!r.ok)throw new Error(d.error||'Could not load recording');
     s.title=d.title||s.title;s.author=d.creator||s.author;s.description=d.description||'';s.mediaUrl=d.mediaUrl||'';
-    s.category=d.category||s.category;s.tags=uniq((s.tags||[]).concat(d.tags||[]));save();
+    s.category=d.category||s.category;s.tags=uniq((s.tags||[]).concat(d.tags||[]));s.brackets=uniq((d.brackets||[]).concat(bracketCategories(s.title||'')));save();
     $('audioTitle').textContent=s.title;$('audioMeta').textContent=s.author||'';$('audioDescription').textContent=s.description||'';
     if(s.mediaUrl){audio.src=s.mediaUrl;audio.play().catch(function(){})}
     else $('audioDescription').textContent=(s.description?s.description+' ':'')+'The direct media URL was not available. Use Open on Soundgasm.'
