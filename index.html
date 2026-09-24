@@ -139,7 +139,7 @@
       <div id="mediaEmpty" class="empty compact-empty panel">
         <div class="empty-icon">▶</div>
         <h3>No video links yet</h3>
-        <p>Add public adult-video page links. WhisperVault can try to pull the page title and thumbnail through your Worker, then clicking the card opens the original site.</p>
+        <p>Use Discover videos to search supported adult sites by tag. Imported results appear here as thumbnail cards that open the original site.</p>
       </div>
       <div id="mediaGrid" class="media-grid"></div>
     </section>
@@ -323,6 +323,33 @@
     <div class="dialog-actions">
       <button type="button" class="ghost" data-close-dialog="sourcesDialog">Cancel</button>
       <button id="saveSourcesBtn" type="button" class="primary">Save links</button>
+    </div>
+  </dialog>
+
+  <dialog id="mediaDiscoverDialog" class="dialog">
+    <div class="dialog-head">
+      <div><div class="eyebrow">MEDIA DISCOVERY</div><h3>Discover matching videos</h3></div>
+      <button class="icon-btn" type="button" data-close-dialog="mediaDiscoverDialog">✕</button>
+    </div>
+    <p class="subtle">Enter a target term such as SPH, small penis, or prostate. WhisperVault will try supported source sites through your Worker. If a source blocks automatic indexing, use the source buttons below to open that search directly.</p>
+    <label>Search term
+      <input id="mediaDiscoverQuery" type="search" placeholder="small penis" autocomplete="off" />
+    </label>
+    <label>Source
+      <select id="mediaDiscoverSource">
+        <option value="all">All supported sources</option>
+        <option value="pornhub">Pornhub</option>
+        <option value="xvideos">XVideos</option>
+        <option value="xnxx">XNXX</option>
+        <option value="xhamster">xHamster</option>
+        <option value="spankbang">SpankBang</option>
+      </select>
+    </label>
+    <div id="mediaDiscoverStatus" class="status-box">Ready.</div>
+    <div id="mediaSourceLinks" class="source-search-links"></div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-close-dialog="mediaDiscoverDialog">Close</button>
+      <button id="mediaDiscoverRunBtn" type="button" class="primary">Find matching videos</button>
     </div>
   </dialog>
 
